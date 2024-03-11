@@ -67,6 +67,7 @@
     "find": "^0.3.0",
     "fs-extra": "^11.2.0",
     "jasmine": "^5.1.0",
+    "mongodb-memory-server": "^9.1.6",
     "nodemon": "^3.1.0",
     "prettier": "^3.2.5",
     "supertest": "^6.3.4",

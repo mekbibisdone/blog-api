@@ -9,3 +9,10 @@ declare module "express" {
     signedCookies: Record<string, string>;
   }
 }
+
+export interface UserBody {
+  fullname: string;
+  email: string;
+  password: string;
+  passwordConfirmation: string;
+}
