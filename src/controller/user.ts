@@ -3,6 +3,8 @@ import { body, validationResult, matchedData } from "express-validator";
 import { UserBody } from "@src/routes/types/express";
 import bcrypt from "bcrypt";
 import { NextFunction, Response, Request } from "express";
+import jwt from "jsonwebtoken";
+import EnvVars from "@src/constants/EnvVars";
 
 export const createUser = [
   body("fullname")
@@ -67,8 +69,12 @@ export const createUser = [
             newUser.password = hash;
             const user = (await newUser.save()).toJSON();
             delete user.password;
+            const exp = Number(EnvVars.Jwt.Exp);
+            const secret = EnvVars.Jwt.Secret;
+            const token = jwt.sign({ data: { ...user }, exp }, secret);
             res.status(201).json({
               ...user,
+              token,
             });
           }
         });
