@@ -16,3 +16,5 @@ export interface UserBody {
   password: string;
   passwordConfirmation: string;
 }
+
+export type LoginBody = Pick<UserBody, "email" | "password">;

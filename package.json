@@ -8,7 +8,7 @@
     "start": "node ./dist --env=production",
     "dev": "nodemon",
     "test": "nodemon --config ./spec/nodemon.json",
-    "test:no-reloading": "npx ts-node --files -r tsconfig-paths/register ./spec"
+    "test:no-reloading": "npx ts-node --files -r --test-only tsconfig-paths/register ./spec"
   },
   "nodemonConfig": {
     "watch": [
