@@ -1,10 +1,11 @@
+import EnvVars from "@src/constants/EnvVars";
 import userModel from "@src/models/user";
-import { body, validationResult, matchedData } from "express-validator";
 import { UserBody } from "@src/routes/types/express";
 import bcrypt from "bcrypt";
-import { NextFunction, Response, Request } from "express";
+import { NextFunction, Request, Response } from "express";
+import { body, matchedData, validationResult, param } from "express-validator";
 import jwt from "jsonwebtoken";
-import EnvVars from "@src/constants/EnvVars";
+import { getBearerToken } from "./utils";
 
 export const createUser = [
   body("fullname")
@@ -81,6 +82,63 @@ export const createUser = [
       }
     } catch (error) {
       next(error);
+    }
+  },
+];
+
+export const deleteUser = [
+  getBearerToken,
+  param("id").trim().escape().notEmpty(),
+  function (req: Request, res: Response, next: NextFunction) {
+    const result = validationResult(req);
+    if (!result.isEmpty) {
+      res.status(400).json({
+        errors: result.array(),
+      });
+    } else next();
+  },
+  async function (req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = req.params.id;
+      // try {
+
+      // } catch (err) {
+      //   if (err)
+      // }
+      const user = await userModel.findById(id);
+      if (user === null || typeof user !== "object") {
+        res.status(400).json({ errors: [{ msg: "User not found" }] });
+      } else {
+        try {
+          const decoded = jwt.verify(
+            res.locals.token as string,
+            EnvVars.Jwt.Secret,
+          );
+          if (
+            typeof decoded === "object" &&
+            "id" in decoded &&
+            decoded.id === user.id
+          ) {
+            await userModel.findByIdAndDelete(user.id);
+            res
+              .status(200)
+              .json({ msg: `${user.email as string} was deleted` });
+          } else {
+            res.status(401).json({
+              errors: [{ msg: "Token does not match signed user" }],
+            });
+          }
+        } catch (err) {
+          res.status(400).json({
+            errors: [{ msg: "Invalid token" }],
+          });
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "CastError")
+        res.status(400).json({errors:[{msg:"Id is invalid"}]});
+      else
+        next(err);
     }
   },
 ];
