@@ -136,9 +136,65 @@ export const deleteUser = [
       }
     } catch (err) {
       if (err instanceof Error && err.name === "CastError")
-        res.status(400).json({errors:[{msg:"Id is invalid"}]});
-      else
-        next(err);
+        res.status(400).json({ errors: [{ msg: "Id is invalid" }] });
+      else next(err);
+    }
+  },
+];
+
+export const updateFullname = [
+  getBearerToken,
+  body("fullname")
+    .trim()
+    .escape()
+    .notEmpty()
+    .withMessage("Fullname is required"),
+  param("id").trim().escape().notEmpty().withMessage("Id is required"),
+  function (req: Request, res: Response, next: NextFunction) {
+    const result = validationResult(req);
+    if (!result.isEmpty()) {
+      res.status(400).json({
+        errors: result.array(),
+      });
+    } else next();
+  },
+  async function (req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id, fullname } = matchedData(req);
+      const user = await userModel.findById(id, { password: 0 });
+      if (user === null || typeof user !== "object") {
+        res.status(400).json({ errors: [{ msg: "User not found" }] });
+      } else {
+        try {
+          const decoded = jwt.verify(
+            res.locals.token as string,
+            EnvVars.Jwt.Secret,
+          );
+          if (
+            typeof decoded === "object" &&
+            "id" in decoded &&
+            decoded.id === user.id
+          ) {
+            await userModel.findByIdAndUpdate(id, {
+              fullname: fullname as string,
+            });
+            const updatedUser = await userModel.findById(id, { password: 0 });
+            res.status(201).json(updatedUser);
+          } else {
+            res.status(401).json({
+              errors: [{ msg: "Token does not match signed user" }],
+            });
+          }
+        } catch (err) {
+          res.status(400).json({
+            errors: [{ msg: "Invalid token" }],
+          });
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "CastError")
+        res.status(400).json({ errors: [{ msg: "Id is invalid" }] });
+      else next(err);
     }
   },
 ];

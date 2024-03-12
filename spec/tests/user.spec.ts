@@ -98,3 +98,59 @@ describe("User deletion", () => {
     expect(response.body.errors).toBeDefined();
   });
 });
+
+describe("User update", () => {
+  const data = {
+    fullname: "daniel",
+    email: "d@d.com",
+    password: "g6Ol0a55&4<r",
+  };
+  let id: string;
+  let token: string;
+  beforeEach(async () => {
+    await userModel.deleteMany({});
+    const passwordHash = await bcrypt.hash(data.password, 10);
+    const newUser = new userModel({
+      ...data,
+      password: passwordHash,
+    });
+    const savedUser = (await newUser.save()).toJSON();
+    id = savedUser._id.toString();
+    token = jwt.sign(
+      { fullname: data.fullname, email: data.email, id },
+      EnvVars.Jwt.Secret,
+    );
+  }, 10000);
+
+  it("updates the fullname and returns the updated data", async () => {
+    const newFullName = { fullname: "Paulo Santos" };
+    const response = await api
+      .put(`/api/user/${id}/fullname`)
+      .set({
+        authorization: `Bearer ${token}`,
+      })
+      .send(newFullName);
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(201);
+    expect(response.body.fullname).toBe(newFullName.fullname);
+  });
+
+  it("returns an error if a token is not sent", async () => {
+    const newFullName = { fullname: "Paulo Santos" };
+    const response = await api
+      .put(`/api/user/${id}/fullname`)
+      .send(newFullName);
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(403);
+    expect(response.body.errors).toBeDefined();
+  });
+
+  it("returns an error if data validation fails", async () => {
+    const response = await api.put(`/api/user/${id}/fullname`).set({
+      authorization: `Bearer ${token}`,
+    });
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(400);
+    expect(response.body.errors).toBeDefined();
+  });
+});
