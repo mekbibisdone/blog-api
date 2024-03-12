@@ -91,7 +91,7 @@ export const deleteUser = [
   param("id").trim().escape().notEmpty(),
   function (req: Request, res: Response, next: NextFunction) {
     const result = validationResult(req);
-    if (!result.isEmpty) {
+    if (!result.isEmpty()) {
       res.status(400).json({
         errors: result.array(),
       });
@@ -99,12 +99,7 @@ export const deleteUser = [
   },
   async function (req: Request, res: Response, next: NextFunction) {
     try {
-      const id = req.params.id;
-      // try {
-
-      // } catch (err) {
-      //   if (err)
-      // }
+      const {id} = matchedData(req);
       const user = await userModel.findById(id);
       if (user === null || typeof user !== "object") {
         res.status(400).json({ errors: [{ msg: "User not found" }] });
