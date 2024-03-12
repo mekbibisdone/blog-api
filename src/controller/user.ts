@@ -104,28 +104,20 @@ export const deleteUser = [
       if (user === null || typeof user !== "object") {
         res.status(400).json({ errors: [{ msg: "User not found" }] });
       } else {
-        try {
-          const decoded = jwt.verify(
-            res.locals.token as string,
-            EnvVars.Jwt.Secret,
-          );
-          if (
-            typeof decoded === "object" &&
-            "id" in decoded &&
-            decoded.id === user.id
-          ) {
-            await userModel.findByIdAndDelete(user.id);
-            res
-              .status(200)
-              .json({ msg: `${user.email as string} was deleted` });
-          } else {
-            res.status(401).json({
-              errors: [{ msg: "Token does not match signed user" }],
-            });
-          }
-        } catch (err) {
-          res.status(400).json({
-            errors: [{ msg: "Invalid token" }],
+        const decoded = jwt.verify(
+          res.locals.token as string,
+          EnvVars.Jwt.Secret,
+        );
+        if (
+          typeof decoded === "object" &&
+          "id" in decoded &&
+          decoded.id === user.id
+        ) {
+          await userModel.findByIdAndDelete(user.id);
+          res.status(200).json({ msg: `${user.email as string} was deleted` });
+        } else {
+          res.status(401).json({
+            errors: [{ msg: "Token does not match signed user" }],
           });
         }
       }
@@ -160,29 +152,23 @@ export const updateFullname = [
       if (user === null || typeof user !== "object") {
         res.status(400).json({ errors: [{ msg: "User not found" }] });
       } else {
-        try {
-          const decoded = jwt.verify(
-            res.locals.token as string,
-            EnvVars.Jwt.Secret,
-          );
-          if (
-            typeof decoded === "object" &&
-            "id" in decoded &&
-            decoded.id === user.id
-          ) {
-            await userModel.findByIdAndUpdate(id, {
-              fullname: fullname as string,
-            });
-            const updatedUser = await userModel.findById(id, { password: 0 });
-            res.status(201).json(updatedUser);
-          } else {
-            res.status(401).json({
-              errors: [{ msg: "Token does not match signed user" }],
-            });
-          }
-        } catch (err) {
-          res.status(400).json({
-            errors: [{ msg: "Invalid token" }],
+        const decoded = jwt.verify(
+          res.locals.token as string,
+          EnvVars.Jwt.Secret,
+        );
+        if (
+          typeof decoded === "object" &&
+          "id" in decoded &&
+          decoded.id === user.id
+        ) {
+          await userModel.findByIdAndUpdate(id, {
+            fullname: fullname as string,
+          });
+          const updatedUser = await userModel.findById(id, { password: 0 });
+          res.status(201).json(updatedUser);
+        } else {
+          res.status(401).json({
+            errors: [{ msg: "Token does not match signed user" }],
           });
         }
       }
