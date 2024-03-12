@@ -153,4 +153,73 @@ describe("User update", () => {
     expect(response.status).toBe(400);
     expect(response.body.errors).toBeDefined();
   });
+
+  it("updates password successfully\
+   , if old password and token is sent", async () => {
+    const oldPassword = data.password;
+    const newPassword = "6<9C6_]8Z3l}";
+
+    const response = await api
+      .put(`/api/user/${id}/password`)
+      .set({
+        authorization: `Bearer ${token}`,
+      })
+      .send({
+        oldPassword,
+        newPassword,
+      });
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(201);
+    expect(response.body.msg).toBeDefined();
+  });
+
+  it("returns an error if old password does not match", async () => {
+    const oldPassword = "fjpadjfpo";
+    const newPassword = "6<9C6_]8Z3l}";
+
+    const response = await api
+      .put(`/api/user/${id}/password`)
+      .set({
+        authorization: `Bearer ${token}`,
+      })
+      .send({
+        oldPassword,
+        newPassword,
+      });
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(401);
+    expect(response.body.errors).toBeDefined();
+  });
+
+  it("returns an error if there is no token", async () => {
+    const oldPassword = data.password;
+    const newPassword = "6<9C6_]8Z3l}";
+
+    const response = await api.put(`/api/user/${id}/password`).send({
+      oldPassword,
+      newPassword,
+    });
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(403);
+    expect(response.body.errors).toBeDefined();
+  });
+  it("returns an error if the new password is not strong enough", async () => {
+    const oldPassword = data.password;
+    const newPassword = "abc";
+
+    const response = await api
+      .put(`/api/user/${id}/password`)
+      .set({
+        authorization: `Bearer ${token}`,
+      })
+      .send({
+        oldPassword,
+        newPassword,
+      });
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(400);
+    expect(response.body.errors).toBeDefined();
+  });
 });

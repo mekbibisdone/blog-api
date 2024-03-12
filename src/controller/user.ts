@@ -99,7 +99,7 @@ export const deleteUser = [
   },
   async function (req: Request, res: Response, next: NextFunction) {
     try {
-      const {id} = matchedData(req);
+      const { id } = matchedData(req);
       const user = await userModel.findById(id);
       if (user === null || typeof user !== "object") {
         res.status(400).json({ errors: [{ msg: "User not found" }] });
@@ -184,6 +184,68 @@ export const updateFullname = [
           res.status(400).json({
             errors: [{ msg: "Invalid token" }],
           });
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "CastError")
+        res.status(400).json({ errors: [{ msg: "Id is invalid" }] });
+      else next(err);
+    }
+  },
+];
+
+export const updatePassword = [
+  getBearerToken,
+  param("id").trim().escape().notEmpty().withMessage("Id is required"),
+  body("oldPassword").trim().notEmpty().withMessage("Old password is required"),
+  body("newPassword")
+    .trim()
+    .notEmpty()
+    .withMessage("New password is required")
+    .isStrongPassword()
+    .withMessage("Password not strong enough"),
+  function (req: Request, res: Response, next: NextFunction) {
+    const result = validationResult(req);
+    if (!result.isEmpty()) {
+      res.status(400).json({
+        errors: result.array(),
+      });
+    } else next();
+  },
+  async function (req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id, oldPassword, newPassword } = matchedData(req);
+      const user = await userModel.findById(id);
+      if (user === null || typeof user !== "object") {
+        res.status(400).json({ errors: [{ msg: "User not found" }] });
+      } else {
+        const decoded = jwt.verify(
+          res.locals.token as string,
+          EnvVars.Jwt.Secret,
+        );
+        if (
+          typeof decoded === "object" &&
+          "id" in decoded &&
+          decoded.id === user.id
+        ) {
+          const match = await bcrypt.compare(
+            oldPassword as string,
+            user.password as string,
+          );
+          if (match) {
+            const newPasswordHash = await bcrypt.hash(
+              newPassword as string,
+              10,
+            );
+            await userModel.findByIdAndUpdate(id, {
+              password: newPasswordHash,
+            });
+            res.status(201).json({ msg: "Password successfully changed" });
+          } else {
+            res.status(401).json({
+              errors: [{ msg: "Old password does not match" }],
+            });
+          }
         }
       }
     } catch (err) {
