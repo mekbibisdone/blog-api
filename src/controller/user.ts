@@ -1,6 +1,6 @@
 import EnvVars from "@src/constants/EnvVars";
 import userModel from "@src/models/user";
-import { UserBody } from "@src/routes/types/express";
+import { UserBody } from "@src/controller/types";
 import bcrypt from "bcrypt";
 import { NextFunction, Request, Response } from "express";
 import { body, matchedData, validationResult, param } from "express-validator";
