@@ -6,9 +6,9 @@ import bcrypt from "bcrypt";
 import userModel, { IUser } from "@src/models/user";
 import EnvVars from "@src/constants/EnvVars";
 import blogModel from "@src/models/blog";
-import { QueriedUser } from "@src/controller/types";
-import { Temporal } from "@js-temporal/polyfill";
+import { BlogBody, QueriedUser } from "@src/controller/types";
 import { Document, Types } from "mongoose";
+import { saveBlogs } from "./util";
 
 const api = supertest(app);
 
@@ -214,19 +214,13 @@ describe("Blog fetching", () => {
   });
 
   it("returns a list of blogs if there are blogs currently saved", async () => {
-    for await (const blog of blogs) {
-      const savedBlog = await new blogModel({
-        ...blog,
-        timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
-      }).save();
-      savedUser.blogs.push(savedBlog._id);
-      await savedUser.save();
-    }
+    await saveBlogs(blogs as BlogBody[], savedUser);
     const response = await api.get("/api/blog");
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     const userOne = response.body.users.filter(
       (user: { _id: string }) => user._id.toString() === id,
     )[0] as QueriedUser;
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(200);
     expect(userOne.blogs).toHaveSize(blogs.length);
@@ -237,19 +231,13 @@ describe("Blog fetching", () => {
     const blogsCopy = blogs.map((blog) => Object.assign({}, blog));
     blogsCopy[0].published = false;
     blogsCopy[1].published = false;
-    for await (const blog of blogsCopy) {
-      const savedBlog = await new blogModel({
-        ...blog,
-        timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
-      }).save();
-      savedUser.blogs.push(savedBlog._id);
-      await savedUser.save();
-    }
+    await saveBlogs(blogsCopy as BlogBody[], savedUser);
     const response = await api.get("/api/blog");
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     const userOne = response.body.users.filter(
       (user: { _id: string }) => user._id.toString() === id,
     )[0] as QueriedUser;
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(200);
     expect(userOne.blogs).toHaveSize(blogsCopy.length - 2);
@@ -259,26 +247,18 @@ describe("Blog fetching", () => {
    to the the specified author", async () => {
     const userOneBlog = blogs[0];
     const userTwoBlog = blogs[1];
-    const savedUserOneBlog = await new blogModel({
-      ...userOneBlog,
-      timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
-    }).save();
-    savedUser.blogs.push(savedUserOneBlog._id);
-    await savedUser.save();
-
-    const savedUserTwoBlog = await new blogModel({
-      ...userTwoBlog,
-      timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
-    }).save();
-    savedUserTwo.blogs.push(savedUserTwoBlog._id);
-    await savedUserTwo.save();
-
+    const savedUserOneBlogs = await saveBlogs(
+      [userOneBlog] as BlogBody[],
+      savedUser,
+    );
+    await saveBlogs([userTwoBlog] as BlogBody[], savedUserTwo);
     const response = await api.get(`/api/${id}/user/blog`);
     const userOne = response.body.user as QueriedUser;
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(200);
     expect(userOne.blogs).toHaveSize(1);
-    expect(userOne.blogs[0].title).toBe(savedUserOneBlog.title);
+    expect(userOne.blogs[0].title).toBe(savedUserOneBlogs[0].title);
   });
 
   it("returns only the blogs that belongs to the\
@@ -287,31 +267,15 @@ describe("Blog fetching", () => {
     const userOneBlogTwo = Object.assign({}, blogs[1]);
     userOneBlogTwo.published = false;
     const userTwoBlog = blogs[2];
-    const savedUserOneBlog = await new blogModel({
-      ...userOneBlog,
-      timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
-    }).save();
-    savedUser.blogs.push(savedUserOneBlog._id);
-    const savedUserOneBlogTwo = await new blogModel({
-      ...userOneBlogTwo,
-      timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
-    }).save();
-    savedUser.blogs.push(savedUserOneBlogTwo._id);
-    await savedUser.save();
-
-    const savedUserTwoBlog = await new blogModel({
-      ...userTwoBlog,
-      timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
-    }).save();
-    savedUserTwo.blogs.push(savedUserTwoBlog._id);
-    await savedUserTwo.save();
+    await saveBlogs([userOneBlog, userOneBlogTwo] as BlogBody[], savedUser);
+    await saveBlogs([userTwoBlog] as BlogBody[], savedUserTwo);
 
     const response = await api.get(`/api/${id}/user/blog`);
     const userOne = response.body.user as QueriedUser;
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(200);
     expect(userOne.blogs).toHaveSize(1);
-    expect(userOne.blogs[0].title).toEqual(savedUserOneBlog.title);
   });
 
   it("returns both the published and unpublished blogs \
@@ -319,24 +283,57 @@ describe("Blog fetching", () => {
     const userOneBlog = blogs[0];
     const userOneBlogTwo = Object.assign({}, blogs[1]);
     userOneBlogTwo.published = false;
-    const savedUserOneBlog = await new blogModel({
-      ...userOneBlog,
-      timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
-    }).save();
-    savedUser.blogs.push(savedUserOneBlog._id);
-    const savedUserOneBlogTwo = await new blogModel({
-      ...userOneBlogTwo,
-      timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
-    }).save();
-    savedUser.blogs.push(savedUserOneBlogTwo._id);
-    await savedUser.save();
+    await saveBlogs([userOneBlog, userOneBlogTwo] as BlogBody[], savedUser);
 
     const response = await api
       .get(`/api/${id}/user/blog`)
       .set({ authorization: `Bearer ${token}` });
     const userOne = response.body.user as QueriedUser;
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(200);
     expect(userOne.blogs).toHaveSize(2);
+  });
+
+  it("returns a single blog that matches the query", async () => {
+    const userOneBlog = blogs[0];
+    const savedBlogs = await saveBlogs([userOneBlog as BlogBody], savedUser);
+
+    const response = await api.get(
+      `/api/${id}/user/${savedBlogs[0]._id.toString()}/blog`,
+    );
+    const userOne = response.body.user as QueriedUser;
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(200);
+    expect(userOne.blogs[0].title).toBe(savedBlogs[0].title);
+  });
+
+  it("returns a 204 status code if the blog matches\
+   the query but isn't published", async () => {
+    const userOneBlog = Object.assign({}, blogs[0]);
+    userOneBlog.published = false;
+    const savedBlogs = await saveBlogs([userOneBlog as BlogBody], savedUser);
+
+    const response = await api.get(
+      `/api/${id}/user/${savedBlogs[0]._id.toString()}/blog`,
+    );
+    expect(response.status).toBe(204);
+  });
+
+  it("returns an unpublished blog if the query matches \
+  and the signed user is the author", async () => {
+    const userOneBlog = Object.assign({}, blogs[0]);
+    userOneBlog.published = false;
+    const savedBlogs = await saveBlogs([userOneBlog as BlogBody], savedUser);
+
+    const response = await api
+      .get(`/api/${id}/user/${savedBlogs[0]._id.toString()}/blog`)
+      .set({ authorization: `Bearer ${token}` });
+    const userOne = response.body.user as QueriedUser;
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(200);
+    expect(userOne.blogs[0].title).toBe(savedBlogs[0].title);
   });
 });

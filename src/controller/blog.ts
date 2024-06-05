@@ -3,7 +3,12 @@ import { Temporal } from "@js-temporal/polyfill";
 import { NextFunction, Request, Response } from "express";
 import { body, matchedData, param, validationResult } from "express-validator";
 import jwt from "jsonwebtoken";
-import { extractBearerToken, handleBearerToken } from "./utils";
+import {
+  extractBearerToken,
+  getMatchCondition,
+  handleBearerToken,
+  handleValidation,
+} from "./utils";
 import { BlogBody } from "./types";
 import EnvVars from "@src/constants/EnvVars";
 import userModel from "@src/models/user";
@@ -99,14 +104,7 @@ export const getAllBlogs = [
 export const getBlogsByAuthor = [
   extractBearerToken,
   param("id").trim().escape().notEmpty(),
-  function (req: Request, res: Response, next: NextFunction) {
-    const result = validationResult(req);
-    if (!result.isEmpty()) {
-      res.status(400).json({
-        errors: result.array(),
-      });
-    } else next();
-  },
+  handleValidation,
   async function (req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = matchedData(req);
@@ -140,6 +138,35 @@ export const getBlogsByAuthor = [
     } catch (err) {
       if (err instanceof Error && err.name === "CastError")
         res.status(400).json({ errors: [{ msg: "Id is invalid" }] });
+      else next(err);
+    }
+  },
+];
+
+export const getSingleBlogByAuthor = [
+  extractBearerToken,
+  param("userId").trim().escape().notEmpty(),
+  param("blogId").trim().escape().notEmpty(),
+  handleValidation,
+  async function (req: Request, res: Response, next: NextFunction) {
+    try {
+      const { userId, blogId } = matchedData(req) as {
+        userId: string;
+        blogId: string;
+      };
+      const user = await userModel.findById(userId, { password: 0 }).populate({
+        path: "blogs",
+        match: getMatchCondition(res.locals.token as string, userId, blogId),
+      });
+      if (user === null || typeof user !== "object") {
+        res.status(400).json({ errors: [{ msg: "User not found" }] });
+      } else if (!user.blogs.length) res.status(204).end();
+      else res.status(200).json({ user });
+
+      next();
+    } catch (err) {
+      if (err instanceof Error && err.name === "CastError")
+        res.status(400).json({ errors: [{ msg: "User Id is invalid" }] });
       else next(err);
     }
   },
