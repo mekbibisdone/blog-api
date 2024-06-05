@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 import { NextFunction, Request, Response } from "express";
 import { body, matchedData, validationResult, param } from "express-validator";
 import jwt from "jsonwebtoken";
-import { getBearerToken } from "./utils";
+import { handleBearerToken } from "./utils";
 
 export const createUser = [
   body("fullname")
@@ -87,7 +87,7 @@ export const createUser = [
 ];
 
 export const deleteUser = [
-  getBearerToken,
+  handleBearerToken,
   param("id").trim().escape().notEmpty(),
   function (req: Request, res: Response, next: NextFunction) {
     const result = validationResult(req);
@@ -114,7 +114,7 @@ export const deleteUser = [
           decoded.id === user.id
         ) {
           await userModel.findByIdAndDelete(user.id);
-          res.status(200).json({ msg: `${user.email as string} was deleted` });
+          res.status(200).json({ msg: `${user.email} was deleted` });
         } else {
           res.status(401).json({
             errors: [{ msg: "Token does not match signed user" }],
@@ -130,7 +130,7 @@ export const deleteUser = [
 ];
 
 export const updateFullname = [
-  getBearerToken,
+  handleBearerToken,
   body("fullname")
     .trim()
     .escape()
@@ -181,7 +181,7 @@ export const updateFullname = [
 ];
 
 export const updatePassword = [
-  getBearerToken,
+  handleBearerToken,
   param("id").trim().escape().notEmpty().withMessage("Id is required"),
   body("oldPassword").trim().notEmpty().withMessage("Old password is required"),
   body("newPassword")

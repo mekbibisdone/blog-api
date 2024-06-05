@@ -24,7 +24,7 @@
     "@src": "dist"
   },
   "engines": {
-    "node": ">=8.10.0"
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@js-temporal/polyfill": "^0.4.4",

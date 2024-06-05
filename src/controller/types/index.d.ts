@@ -1,3 +1,5 @@
+import { IBlog } from "@src/models/blog";
+import { IUser } from "@src/models/user";
 import "express";
 
 // **** Declaration Merging **** //
@@ -22,4 +24,9 @@ export interface BlogBody {
   published: boolean;
 }
 
+export interface QueriedUser extends IUser {
+  blogs: IBlog[];
+}
+
+export interface QueriedBlog extends IBlog {}
 export type LoginBody = Pick<UserBody, "email" | "password">;

@@ -1,15 +1,15 @@
 import blogModel from "@src/models/blog";
 import { Temporal } from "@js-temporal/polyfill";
 import { NextFunction, Request, Response } from "express";
-import { body, matchedData, validationResult } from "express-validator";
+import { body, matchedData, param, validationResult } from "express-validator";
 import jwt from "jsonwebtoken";
-import { getBearerToken } from "./utils";
+import { extractBearerToken, handleBearerToken } from "./utils";
 import { BlogBody } from "./types";
 import EnvVars from "@src/constants/EnvVars";
 import userModel from "@src/models/user";
 
 export const createBlog = [
-  getBearerToken,
+  handleBearerToken,
   body("title")
     .trim()
     .escape()
@@ -66,7 +66,7 @@ export const createBlog = [
           const blog = new blogModel({ ...blogData });
           blog.timestamp = Temporal.Instant.from(
             Temporal.Now.instant().toString(),
-          );
+          ).toString();
           const savedBlog = await blog.save();
           await userModel.findByIdAndUpdate(userId, {
             blogs: [...user.blogs, savedBlog._id],
@@ -82,6 +82,65 @@ export const createBlog = [
       }
     } catch (err) {
       next(err);
+    }
+  },
+];
+
+export const getAllBlogs = [
+  async function (req: Request, res: Response, next: NextFunction) {
+    const users = await userModel
+      .find({}, { password: 0 })
+      .populate({ path: "blogs", match: { published: true } });
+    res.status(200).json({ users });
+    next();
+  },
+];
+
+export const getBlogsByAuthor = [
+  extractBearerToken,
+  param("id").trim().escape().notEmpty(),
+  function (req: Request, res: Response, next: NextFunction) {
+    const result = validationResult(req);
+    if (!result.isEmpty()) {
+      res.status(400).json({
+        errors: result.array(),
+      });
+    } else next();
+  },
+  async function (req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = matchedData(req);
+      let user = await userModel.findById(id, { password: 0 });
+      let decoded;
+      try {
+        decoded = jwt.verify(res.locals.token as string, EnvVars.Jwt.Secret);
+      } catch {
+        decoded = {};
+      }
+
+      if (user === null || typeof user !== "object") {
+        res.status(400).json({ errors: [{ msg: "User not found" }] });
+      } else if (
+        typeof decoded === "object" &&
+        "id" in decoded &&
+        decoded.id === user.id
+      ) {
+        user = await user.populate({
+          path: "blogs",
+        });
+        res.status(200).json({ user });
+      } else {
+        user = await user.populate({
+          path: "blogs",
+          match: { published: true },
+        });
+        res.status(200).json({ user });
+      }
+      next();
+    } catch (err) {
+      if (err instanceof Error && err.name === "CastError")
+        res.status(400).json({ errors: [{ msg: "Id is invalid" }] });
+      else next(err);
     }
   },
 ];
