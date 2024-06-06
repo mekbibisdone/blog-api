@@ -1,7 +1,7 @@
 import blogModel from "@src/models/blog";
 import { Temporal } from "@js-temporal/polyfill";
 import { NextFunction, Request, Response } from "express";
-import { body, matchedData, param, validationResult } from "express-validator";
+import { body, matchedData, param } from "express-validator";
 import jwt from "jsonwebtoken";
 import {
   extractBearerToken,
@@ -42,32 +42,26 @@ export const createBlog = [
     .withMessage("Published is required")
     .isBoolean()
     .withMessage("Published must be a boolean value"),
-  body("userId").trim().escape().notEmpty().withMessage("User is required"),
-  function (req: Request, res: Response, next: NextFunction) {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    next();
-  },
+  param("userId").trim().escape().notEmpty().withMessage("User is required"),
+  handleValidation,
   async function (req: Request, res: Response, next: NextFunction) {
     try {
       const { userId, ...blogData } = matchedData(req) as BlogBody;
-      const decoded = jwt.verify(
-        res.locals.token as string,
-        EnvVars.Jwt.Secret,
-      );
-      if (
-        typeof decoded === "object" &&
-        "id" in decoded &&
-        decoded.id === userId
-      ) {
-        const user = await userModel.findById(userId);
-        if (user === null) {
-          res.status(404).json({
-            errors: [{ msg: "User not found" }],
-          });
-        } else {
+      const user = await userModel.findById(userId);
+      if (user === null) {
+        res.status(404).json({
+          errors: [{ msg: "User not found" }],
+        });
+      } else {
+        const decoded = jwt.verify(
+          res.locals.token as string,
+          EnvVars.Jwt.Secret,
+        );
+        if (
+          typeof decoded === "object" &&
+          "id" in decoded &&
+          decoded.id === user._id.toString()
+        ) {
           const blog = new blogModel({ ...blogData });
           blog.timestamp = Temporal.Instant.from(
             Temporal.Now.instant().toString(),
@@ -79,14 +73,16 @@ export const createBlog = [
           res.status(201).json({
             ...savedBlog.toJSON(),
           });
+        } else {
+          res.status(401).json({
+            errors: [{ msg: "Token does not match signed user" }],
+          });
         }
-      } else {
-        res.status(401).json({
-          errors: [{ msg: "Token does not match signed user" }],
-        });
       }
     } catch (err) {
-      next(err);
+      if (err instanceof Error && err.name === "CastError")
+        res.status(400).json({ errors: [{ msg: "User Id is invalid" }] });
+      else next(err);
     }
   },
 ];
@@ -103,12 +99,12 @@ export const getAllBlogs = [
 
 export const getBlogsByAuthor = [
   extractBearerToken,
-  param("id").trim().escape().notEmpty(),
+  param("userId").trim().escape().notEmpty(),
   handleValidation,
   async function (req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = matchedData(req);
-      let user = await userModel.findById(id, { password: 0 });
+      const { userId } = matchedData(req);
+      let user = await userModel.findById(userId, { password: 0 });
       let decoded;
       try {
         decoded = jwt.verify(res.locals.token as string, EnvVars.Jwt.Secret);
@@ -117,7 +113,7 @@ export const getBlogsByAuthor = [
       }
 
       if (user === null || typeof user !== "object") {
-        res.status(400).json({ errors: [{ msg: "User not found" }] });
+        res.status(404).json({ errors: [{ msg: "User not found" }] });
       } else if (
         typeof decoded === "object" &&
         "id" in decoded &&

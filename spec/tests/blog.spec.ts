@@ -41,11 +41,12 @@ describe("Blog creation", () => {
   afterEach(async () => {
     await userModel.deleteMany({});
   });
-  it("returns the saved blog all requirements are met", async () => {
+  it("returns the saved blogs if all requirements are met", async () => {
     const response = await api
-      .post("/api/blog")
+      .post(`/api/blog/user/${id}`)
       .set({ authorization: `Bearer ${token}` })
-      .send({ ...blog, userId: id });
+      .send({ ...blog });
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(201);
     expect(response.body.title).toBe(blog.title);
@@ -55,79 +56,132 @@ describe("Blog creation", () => {
   });
 
   it("returns an error if token is missing", async () => {
-    const response = await api.post("/api/blog").send({ ...blog, userId: id });
+    const response = await api.post(`/api/blog/user/${id}`).send({ ...blog });
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(403);
-    expect(response.body.errors).toBeDefined();
+    expect(response.body.errors[0].msg).toBe("Token is missing");
   });
 
-  it("returns an error if any of the blog fields are missing", async () => {
+  it("returns an error if the blog data isn't sent", async () => {
     const response = await api
-      .post("/api/blog")
-      .set({ authorization: `Bearer ${token}` })
-      .send({ userId: id });
+      .post(`/api/blog/user/${id}`)
+      .set({ authorization: `Bearer ${token}` });
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(400);
     expect(response.body.errors).toBeDefined();
   });
 
-  it("returns an error if userId is missing", async () => {
+  it("returns an error if the userId isn't correct objectid", async () => {
     const response = await api
-      .post("/api/blog")
+      .post("/api/blog/user/ko")
       .set({ authorization: `Bearer ${token}` })
       .send({ ...blog });
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(400);
-    expect(response.body.errors).toBeDefined();
+    expect(response.body.errors[0].msg).toBe("User Id is invalid");
+  });
+
+  it("returns an error if the userId doesn't match any user", async () => {
+    const wrongId = Types.ObjectId.createFromBase64("watermelonpowerw");
+    const response = await api
+      .post(`/api/blog/user/${wrongId.toString()}`)
+      .set({ authorization: `Bearer ${token}` })
+      .send({ ...blog });
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(404);
+    expect(response.body.errors[0].msg).toBe("User not found");
+  });
+
+  it("retrun an error if the userId doesn't match token", async () => {
+    const userDataTwo = {
+      fullname: "waterson",
+      email: "p@p.com",
+      password: "q5=Q£9V7a-86",
+    };
+    const passwordHashTwo = await bcrypt.hash(userDataTwo.password, 10);
+    const savedUserTwo = await new userModel({
+      ...userDataTwo,
+      password: passwordHashTwo,
+    }).save();
+
+    const response = await api
+      .post(`/api/blog/user/${savedUserTwo._id.toString()}`)
+      .set({ authorization: `Bearer ${token}` })
+      .send({ ...blog });
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(401);
+    expect(response.body.errors[0].msg).toBe(
+      "Token does not match signed user",
+    );
   });
 
   it("returns an error if content length is\
    higher than the limit", async () => {
     const response = await api
-      .post("/api/blog")
+      .post(`/api/blog/user/${id}`)
       .set({ authorization: `Bearer ${token}` })
       .send({ ...blog, content: "a".repeat(70000 + 1) });
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(400);
-    expect(response.body.errors).toBeDefined();
+    expect(response.body.errors[0].msg).toBe(
+      "Content must be between 2000 and 70000 characters",
+    );
   });
   it("returns an error if the content length is\
    lower than the limit", async () => {
     const response = await api
-      .post("/api/blog")
+      .post(`/api/blog/user/${id}`)
       .set({ authorization: `Bearer ${token}` })
       .send({ ...blog, content: "a".repeat(2000 - 1) });
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(400);
-    expect(response.body.errors).toBeDefined();
+    expect(response.body.errors[0].msg).toBe(
+      "Content must be between 2000 and 70000 characters",
+    );
   });
   it("returns an error if title length is higher than the limit", async () => {
     const response = await api
-      .post("/api/blog")
+      .post(`/api/blog/user/${id}`)
       .set({ authorization: `Bearer ${token}` })
       .send({ ...blog, title: "a".repeat(60 + 1) });
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(400);
-    expect(response.body.errors).toBeDefined();
+    expect(response.body.errors[0].msg).toBe(
+      "Title must be between 2 and 60 characters",
+    );
   });
   it("returns an error if the title length is \
   lower than the limit", async () => {
     const response = await api
-      .post("/api/blog")
+      .post(`/api/blog/user/${id}`)
       .set({ authorization: `Bearer ${token}` })
       .send({ ...blog, title: "a".repeat(2 - 1) });
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(400);
-    expect(response.body.errors).toBeDefined();
+    expect(response.body.errors[0].msg).toBe(
+      "Title must be between 2 and 60 characters",
+    );
   });
   it("returns an error if published is not a boolean", async () => {
     const response = await api
-      .post("/api/blog")
+      .post(`/api/blog/user/${id}`)
       .set({ authorization: `Bearer ${token}` })
-      .send({ ...blog, published: "true" });
+      .send({ ...blog, published: "loop" });
+
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(400);
-    expect(response.body.errors).toBeDefined();
+    expect(response.body.errors[0].msg).toBe(
+      "Published must be a boolean value",
+    );
   });
 });
 
@@ -252,7 +306,7 @@ describe("Blog fetching", () => {
       savedUser,
     );
     await saveBlogs([userTwoBlog] as BlogBody[], savedUserTwo);
-    const response = await api.get(`/api/${id}/user/blog`);
+    const response = await api.get(`/api/blog/user/${id}`);
     const userOne = response.body.user as QueriedUser;
 
     expect(response.headers["content-type"]).toMatch(/json/);
@@ -270,7 +324,7 @@ describe("Blog fetching", () => {
     await saveBlogs([userOneBlog, userOneBlogTwo] as BlogBody[], savedUser);
     await saveBlogs([userTwoBlog] as BlogBody[], savedUserTwo);
 
-    const response = await api.get(`/api/${id}/user/blog`);
+    const response = await api.get(`/api/blog/user/${id}`);
     const userOne = response.body.user as QueriedUser;
 
     expect(response.headers["content-type"]).toMatch(/json/);
@@ -286,7 +340,7 @@ describe("Blog fetching", () => {
     await saveBlogs([userOneBlog, userOneBlogTwo] as BlogBody[], savedUser);
 
     const response = await api
-      .get(`/api/${id}/user/blog`)
+      .get(`/api/blog/user/${id}`)
       .set({ authorization: `Bearer ${token}` });
     const userOne = response.body.user as QueriedUser;
 
@@ -300,7 +354,7 @@ describe("Blog fetching", () => {
     const savedBlogs = await saveBlogs([userOneBlog as BlogBody], savedUser);
 
     const response = await api.get(
-      `/api/${id}/user/${savedBlogs[0]._id.toString()}/blog`,
+      `/api/blog/${savedBlogs[0]._id.toString()}/user/${id}/`,
     );
     const userOne = response.body.user as QueriedUser;
 
@@ -316,7 +370,7 @@ describe("Blog fetching", () => {
     const savedBlogs = await saveBlogs([userOneBlog as BlogBody], savedUser);
 
     const response = await api.get(
-      `/api/${id}/user/${savedBlogs[0]._id.toString()}/blog`,
+      `/api/blog/${savedBlogs[0]._id.toString()}/user/${id}/`,
     );
     expect(response.status).toBe(204);
   });
@@ -328,7 +382,7 @@ describe("Blog fetching", () => {
     const savedBlogs = await saveBlogs([userOneBlog as BlogBody], savedUser);
 
     const response = await api
-      .get(`/api/${id}/user/${savedBlogs[0]._id.toString()}/blog`)
+      .get(`/api/blog/${savedBlogs[0]._id.toString()}/user/${id}/`)
       .set({ authorization: `Bearer ${token}` });
     const userOne = response.body.user as QueriedUser;
 

@@ -23,7 +23,7 @@ export function handleBearerToken(
     next();
   } else {
     // Forbidden
-    res.status(403).json({ errors: [{ msg: "Token missing" }] });
+    res.status(403).json({ errors: [{ msg: "Token is missing" }] });
   }
 }
 
