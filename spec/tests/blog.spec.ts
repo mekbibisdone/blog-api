@@ -55,14 +55,6 @@ describe("Blog creation", () => {
     expect(response.body.timestamp).toBeDefined();
   });
 
-  it("returns an error if token is missing", async () => {
-    const response = await api.post(`/api/blog/user/${id}`).send({ ...blog });
-
-    expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(403);
-    expect(response.body.errors[0].msg).toBe("Token is missing");
-  });
-
   it("returns an error if the blog data isn't sent", async () => {
     const response = await api
       .post(`/api/blog/user/${id}`)

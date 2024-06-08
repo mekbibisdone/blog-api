@@ -16,7 +16,9 @@ const blogSchema = new mongoose.Schema({
   timestamp: { type: String, required: true },
   published: { type: Boolean, required: true },
   editedOn: { type: String, required: false },
-  comments: [{ type: mongoose.Types.ObjectId, required: false }],
+  comments: [
+    { type: mongoose.Types.ObjectId, ref: "Comment", required: false },
+  ],
 });
 
 const blogModel = mongoose.model<IBlog>("Blog", blogSchema);

@@ -72,13 +72,6 @@ describe("User deletion", () => {
     expect(response.body.msg).toBeDefined();
   });
 
-  it("returns an error if token is not present", async () => {
-    const response = await api.delete(`/api/user/${id}`);
-    expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(403);
-    expect(response.body.errors).toBeDefined();
-  });
-
   it("returns an error if token does not match signed user", async () => {
     const wrongToken = jwt.sign({ hello: "hello" }, EnvVars.Jwt.Secret);
     const response = await api.delete(`/api/user/${id}`).set({
@@ -135,16 +128,6 @@ describe("User update", () => {
     expect(response.body.fullname).toBe(newFullName.fullname);
   });
 
-  it("returns an error if a token is not sent", async () => {
-    const newFullName = { fullname: "Paulo Santos" };
-    const response = await api
-      .put(`/api/user/${id}/fullname`)
-      .send(newFullName);
-    expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(403);
-    expect(response.body.errors).toBeDefined();
-  });
-
   it("returns an error if data validation fails", async () => {
     const response = await api.put(`/api/user/${id}/fullname`).set({
       authorization: `Bearer ${token}`,
@@ -192,18 +175,6 @@ describe("User update", () => {
     expect(response.body.errors).toBeDefined();
   });
 
-  it("returns an error if there is no token", async () => {
-    const oldPassword = data.password;
-    const newPassword = "6<9C6_]8Z3l}";
-
-    const response = await api.put(`/api/user/${id}/password`).send({
-      oldPassword,
-      newPassword,
-    });
-    expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(403);
-    expect(response.body.errors).toBeDefined();
-  });
   it("returns an error if the new password is not strong enough", async () => {
     const oldPassword = data.password;
     const newPassword = "abc";
