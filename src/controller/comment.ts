@@ -8,7 +8,6 @@ import { body, matchedData, param } from "express-validator";
 import mongoose from "mongoose";
 import {
   doesTokenMatchUser,
-  getMatchCondition,
   handleBearerToken,
   handleBlogLookUp,
   handleUserLookUp,
@@ -34,16 +33,21 @@ export const createComment = [
         _id: mongoose.Types.ObjectId;
       }>;
     const blog = res.locals.blog as IBlog;
+    const matchCondition = {
+      _id: blog._id,
+      published: true,
+    };
     user = await user.populate({
       path: "blogs",
-      match: getMatchCondition(
-        res.locals.token as string,
-        user._id.toString(),
-        blog._id.toString(),
-      ),
+      match: matchCondition,
     });
-    if (!user.blogs.length) res.status(204).end();
-    else {
+    if (!user.blogs.length) {
+      if (!blog.published)
+        res
+          .status(403)
+          .json({ errors: [{ msg: "Can't comment on unpublished blog" }] });
+      else res.status(204).end();
+    } else {
       const comment = new commentModel({ content, user: user._id });
       comment.timestamp = Temporal.Instant.from(
         Temporal.Now.instant().toString(),
