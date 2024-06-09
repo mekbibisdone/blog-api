@@ -5,7 +5,12 @@ import bcrypt from "bcrypt";
 import { NextFunction, Request, Response } from "express";
 import { body, matchedData, param } from "express-validator";
 import jwt from "jsonwebtoken";
-import { handleUserLookUp, handleBearerToken, handleValidation } from "./utils";
+import {
+  handleUserLookUp,
+  handleBearerToken,
+  handleValidation,
+  doesTokenMatchUser,
+} from "./utils";
 
 export const createUser = [
   body("fullname")
@@ -83,21 +88,12 @@ export const deleteUser = [
   handleBearerToken,
   param("userId").trim().escape().notEmpty(),
   handleUserLookUp,
+  doesTokenMatchUser,
   async function (req: Request, res: Response, next: NextFunction) {
     const user = res.locals.user as IUser;
-    const decoded = jwt.verify(res.locals.token as string, EnvVars.Jwt.Secret);
-    if (
-      typeof decoded === "object" &&
-      "id" in decoded &&
-      decoded.id === user._id.toString()
-    ) {
-      await userModel.findByIdAndDelete(user._id.toString());
-      res.status(200).json({ msg: `${user.email} was deleted` });
-    } else {
-      res.status(401).json({
-        errors: [{ msg: "Token does not match signed user" }],
-      });
-    }
+    await userModel.findByIdAndDelete(user._id.toString());
+    res.status(200).json({ msg: `${user.email} was deleted` });
+
     next();
   },
 ];
@@ -112,25 +108,16 @@ export const updateFullname = [
   param("userId").trim().escape().notEmpty().withMessage("userId is required"),
   handleValidation,
   handleUserLookUp,
+  doesTokenMatchUser,
   async function (req: Request, res: Response, next: NextFunction) {
     const { fullname } = matchedData(req);
     const user = res.locals.user as IUser;
-    const decoded = jwt.verify(res.locals.token as string, EnvVars.Jwt.Secret);
-    if (
-      typeof decoded === "object" &&
-      "id" in decoded &&
-      decoded.id === user._id.toString()
-    ) {
-      await userModel.findByIdAndUpdate(user._id, {
-        fullname: fullname as string,
-      });
-      const updatedUser = await userModel.findById(user._id, { password: 0 });
-      res.status(201).json(updatedUser);
-    } else {
-      res.status(401).json({
-        errors: [{ msg: "Token does not match signed user" }],
-      });
-    }
+    await userModel.findByIdAndUpdate(user._id, {
+      fullname: fullname as string,
+    });
+    const updatedUser = await userModel.findById(user._id, { password: 0 });
+    res.status(201).json(updatedUser);
+
     next();
   },
 ];
@@ -146,37 +133,31 @@ export const updatePassword = [
     .isStrongPassword()
     .withMessage("Password not strong enough"),
   handleValidation,
-  handleValidation,
   (req: Request, res: Response, next: NextFunction) => {
     res.locals.password = true;
     next();
   },
   handleUserLookUp,
+  doesTokenMatchUser,
   async function (req: Request, res: Response, next: NextFunction) {
     const { oldPassword, newPassword } = matchedData(req);
     const user = res.locals.user as IUser;
-    const decoded = jwt.verify(res.locals.token as string, EnvVars.Jwt.Secret);
-    if (
-      typeof decoded === "object" &&
-      "id" in decoded &&
-      decoded.id === user._id.toString()
-    ) {
-      const match = await bcrypt.compare(
-        oldPassword as string,
-        user.password as string,
-      );
-      if (match) {
-        const newPasswordHash = await bcrypt.hash(newPassword as string, 10);
-        await userModel.findByIdAndUpdate(user._id, {
-          password: newPasswordHash,
-        });
-        res.status(201).json({ msg: "Password successfully changed" });
-      } else {
-        res.status(401).json({
-          errors: [{ msg: "Old password does not match" }],
-        });
-      }
+    const match = await bcrypt.compare(
+      oldPassword as string,
+      user.password as string,
+    );
+    if (match) {
+      const newPasswordHash = await bcrypt.hash(newPassword as string, 10);
+      await userModel.findByIdAndUpdate(user._id, {
+        password: newPasswordHash,
+      });
+      res.status(201).json({ msg: "Password successfully changed" });
+    } else {
+      res.status(401).json({
+        errors: [{ msg: "Old password does not match" }],
+      });
     }
+
     next();
   },
 ];

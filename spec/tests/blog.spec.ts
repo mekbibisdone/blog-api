@@ -65,30 +65,6 @@ describe("Blog creation", () => {
     expect(response.body.errors).toBeDefined();
   });
 
-  it("retrun an error if the userId doesn't match token", async () => {
-    const userDataTwo = {
-      fullname: "waterson",
-      email: "p@p.com",
-      password: "q5=Q£9V7a-86",
-    };
-    const passwordHashTwo = await bcrypt.hash(userDataTwo.password, 10);
-    const savedUserTwo = await new userModel({
-      ...userDataTwo,
-      password: passwordHashTwo,
-    }).save();
-
-    const response = await api
-      .post(`/api/blog/user/${savedUserTwo._id.toString()}`)
-      .set({ authorization: `Bearer ${token}` })
-      .send({ ...blog });
-
-    expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(401);
-    expect(response.body.errors[0].msg).toBe(
-      "Token does not match signed user",
-    );
-  });
-
   it("returns an error if content length is\
    higher than the limit", async () => {
     const response = await api

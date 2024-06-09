@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import { validationResult } from "express-validator";
 import { matchedData } from "express-validator";
-import userModel from "@src/models/user";
+import userModel, { IUser } from "@src/models/user";
 import { BlogBody, UserBody } from "./types";
 
 export function handleBearerToken(
@@ -114,4 +114,24 @@ export async function handleUserLookUp(
   }
 
   next();
+}
+
+export function doesTokenMatchUser(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const decoded = jwt.verify(res.locals.token as string, EnvVars.Jwt.Secret);
+  const user = res.locals.user as IUser;
+  if (
+    typeof decoded === "object" &&
+    "id" in decoded &&
+    decoded.id === user._id.toString()
+  ) {
+    next();
+  } else {
+    res.status(401).json({
+      errors: [{ msg: "Token does not match signed user" }],
+    });
+  }
 }

@@ -9,6 +9,7 @@ import {
   getMatchCondition,
   handleBearerToken,
   handleValidation,
+  doesTokenMatchUser,
 } from "./utils";
 import { BlogBody } from "./types";
 import EnvVars from "@src/constants/EnvVars";
@@ -47,32 +48,23 @@ export const createBlog = [
   param("userId").trim().escape().notEmpty().withMessage("User is required"),
   handleValidation,
   handleUserLookUp,
+  doesTokenMatchUser,
   async function (req: Request, res: Response, next: NextFunction) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { userId, ...blogData } = matchedData(req) as BlogBody;
     const user = res.locals.user as IUser;
-    const decoded = jwt.verify(res.locals.token as string, EnvVars.Jwt.Secret);
-    if (
-      typeof decoded === "object" &&
-      "id" in decoded &&
-      decoded.id === user._id.toString()
-    ) {
-      const blog = new blogModel({ ...blogData });
-      blog.timestamp = Temporal.Instant.from(
-        Temporal.Now.instant().toString(),
-      ).toString();
-      const savedBlog = await blog.save();
-      await userModel.findByIdAndUpdate(user._id, {
-        blogs: [...user.blogs, savedBlog._id],
-      });
-      res.status(201).json({
-        ...savedBlog.toJSON(),
-      });
-    } else {
-      res.status(401).json({
-        errors: [{ msg: "Token does not match signed user" }],
-      });
-    }
+    const blog = new blogModel({ ...blogData });
+    blog.timestamp = Temporal.Instant.from(
+      Temporal.Now.instant().toString(),
+    ).toString();
+    const savedBlog = await blog.save();
+    await userModel.findByIdAndUpdate(user._id, {
+      blogs: [...user.blogs, savedBlog._id],
+    });
+    res.status(201).json({
+      ...savedBlog.toJSON(),
+    });
+
     next();
   },
 ];

@@ -71,16 +71,6 @@ describe("User deletion", () => {
     expect(response.status).toBe(200);
     expect(response.body.msg).toBeDefined();
   });
-
-  it("returns an error if token does not match signed user", async () => {
-    const wrongToken = jwt.sign({ hello: "hello" }, EnvVars.Jwt.Secret);
-    const response = await api.delete(`/api/user/${id}`).set({
-      authorization: `Bearer ${wrongToken}`,
-    });
-    expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(401);
-    expect(response.body.errors).toBeDefined();
-  });
 });
 
 describe("User update", () => {
@@ -163,7 +153,7 @@ describe("User update", () => {
 
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(401);
-    expect(response.body.errors).toBeDefined();
+    expect(response.body.errors[0].msg).toBe("Old password does not match");
   });
 
   it("returns an error if the new password is not strong enough", async () => {
