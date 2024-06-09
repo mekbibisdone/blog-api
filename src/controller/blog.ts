@@ -4,6 +4,7 @@ import { NextFunction, Request, Response } from "express";
 import { body, matchedData, param } from "express-validator";
 import jwt from "jsonwebtoken";
 import {
+  handleUserLookUp,
   extractBearerToken,
   getMatchCondition,
   handleBearerToken,
@@ -11,7 +12,8 @@ import {
 } from "./utils";
 import { BlogBody } from "./types";
 import EnvVars from "@src/constants/EnvVars";
-import userModel from "@src/models/user";
+import userModel, { IUser } from "@src/models/user";
+import mongoose from "mongoose";
 
 export const createBlog = [
   handleBearerToken,
@@ -44,46 +46,34 @@ export const createBlog = [
     .withMessage("Published must be a boolean value"),
   param("userId").trim().escape().notEmpty().withMessage("User is required"),
   handleValidation,
+  handleUserLookUp,
   async function (req: Request, res: Response, next: NextFunction) {
-    try {
-      const { userId, ...blogData } = matchedData(req) as BlogBody;
-      const user = await userModel.findById(userId);
-      if (user === null) {
-        res.status(404).json({
-          errors: [{ msg: "User not found" }],
-        });
-      } else {
-        const decoded = jwt.verify(
-          res.locals.token as string,
-          EnvVars.Jwt.Secret,
-        );
-        if (
-          typeof decoded === "object" &&
-          "id" in decoded &&
-          decoded.id === user._id.toString()
-        ) {
-          const blog = new blogModel({ ...blogData });
-          blog.timestamp = Temporal.Instant.from(
-            Temporal.Now.instant().toString(),
-          ).toString();
-          const savedBlog = await blog.save();
-          await userModel.findByIdAndUpdate(userId, {
-            blogs: [...user.blogs, savedBlog._id],
-          });
-          res.status(201).json({
-            ...savedBlog.toJSON(),
-          });
-        } else {
-          res.status(401).json({
-            errors: [{ msg: "Token does not match signed user" }],
-          });
-        }
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === "CastError")
-        res.status(400).json({ errors: [{ msg: "User Id is invalid" }] });
-      else next(err);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { userId, ...blogData } = matchedData(req) as BlogBody;
+    const user = res.locals.user as IUser;
+    const decoded = jwt.verify(res.locals.token as string, EnvVars.Jwt.Secret);
+    if (
+      typeof decoded === "object" &&
+      "id" in decoded &&
+      decoded.id === user._id.toString()
+    ) {
+      const blog = new blogModel({ ...blogData });
+      blog.timestamp = Temporal.Instant.from(
+        Temporal.Now.instant().toString(),
+      ).toString();
+      const savedBlog = await blog.save();
+      await userModel.findByIdAndUpdate(user._id, {
+        blogs: [...user.blogs, savedBlog._id],
+      });
+      res.status(201).json({
+        ...savedBlog.toJSON(),
+      });
+    } else {
+      res.status(401).json({
+        errors: [{ msg: "Token does not match signed user" }],
+      });
     }
+    next();
   },
 ];
 
@@ -101,41 +91,36 @@ export const getBlogsByAuthor = [
   extractBearerToken,
   param("userId").trim().escape().notEmpty(),
   handleValidation,
+  handleUserLookUp,
   async function (req: Request, res: Response, next: NextFunction) {
+    let user = res.locals.user as mongoose.Document<unknown, object, IUser> &
+      IUser &
+      Required<{
+        _id: mongoose.Types.ObjectId;
+      }>;
+    let decoded;
     try {
-      const { userId } = matchedData(req);
-      let user = await userModel.findById(userId, { password: 0 });
-      let decoded;
-      try {
-        decoded = jwt.verify(res.locals.token as string, EnvVars.Jwt.Secret);
-      } catch {
-        decoded = {};
-      }
-
-      if (user === null || typeof user !== "object") {
-        res.status(404).json({ errors: [{ msg: "User not found" }] });
-      } else if (
-        typeof decoded === "object" &&
-        "id" in decoded &&
-        decoded.id === user.id
-      ) {
-        user = await user.populate({
-          path: "blogs",
-        });
-        res.status(200).json({ user });
-      } else {
-        user = await user.populate({
-          path: "blogs",
-          match: { published: true },
-        });
-        res.status(200).json({ user });
-      }
-      next();
-    } catch (err) {
-      if (err instanceof Error && err.name === "CastError")
-        res.status(400).json({ errors: [{ msg: "Id is invalid" }] });
-      else next(err);
+      decoded = jwt.verify(res.locals.token as string, EnvVars.Jwt.Secret);
+    } catch {
+      decoded = {};
     }
+    if (
+      typeof decoded === "object" &&
+      "id" in decoded &&
+      decoded.id === user?._id.toString()
+    ) {
+      user = await user.populate({
+        path: "blogs",
+      });
+      res.status(200).json({ user });
+    } else {
+      user = await user.populate({
+        path: "blogs",
+        match: { published: true },
+      });
+      res.status(200).json({ user });
+    }
+    next();
   },
 ];
 
@@ -144,26 +129,26 @@ export const getSingleBlogByAuthor = [
   param("userId").trim().escape().notEmpty(),
   param("blogId").trim().escape().notEmpty(),
   handleValidation,
+  handleUserLookUp,
   async function (req: Request, res: Response, next: NextFunction) {
-    try {
-      const { userId, blogId } = matchedData(req) as {
-        userId: string;
-        blogId: string;
-      };
-      const user = await userModel.findById(userId, { password: 0 }).populate({
-        path: "blogs",
-        match: getMatchCondition(res.locals.token as string, userId, blogId),
-      });
-      if (user === null || typeof user !== "object") {
-        res.status(400).json({ errors: [{ msg: "User not found" }] });
-      } else if (!user.blogs.length) res.status(204).end();
-      else res.status(200).json({ user });
-
-      next();
-    } catch (err) {
-      if (err instanceof Error && err.name === "CastError")
-        res.status(400).json({ errors: [{ msg: "User Id is invalid" }] });
-      else next(err);
-    }
+    const { blogId } = matchedData(req) as {
+      blogId: string;
+    };
+    let user = res.locals.user as mongoose.Document<unknown, object, IUser> &
+      IUser &
+      Required<{
+        _id: mongoose.Types.ObjectId;
+      }>;
+    user = await user.populate({
+      path: "blogs",
+      match: getMatchCondition(
+        res.locals.token as string,
+        user._id.toString(),
+        blogId,
+      ),
+    });
+    if (!user.blogs.length) res.status(204).end();
+    else res.status(200).json({ user });
+    next();
   },
 ];

@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import EnvVars from "@src/constants/EnvVars";
 import userModel from "@src/models/user";
-import { saveBlogs } from "./util";
+import { saveBlogs } from "./utils";
 import { BlogBody } from "@src/controller/types";
 
 const api = supertest(app);

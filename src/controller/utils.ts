@@ -3,6 +3,9 @@ import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import { validationResult } from "express-validator";
+import { matchedData } from "express-validator";
+import userModel from "@src/models/user";
+import { BlogBody, UserBody } from "./types";
 
 export function handleBearerToken(
   req: Request,
@@ -81,6 +84,34 @@ export function handleValidation(
   if (!result.isEmpty()) {
     res.status(400).json({
       errors: result.array(),
+      data: req.body as UserBody | BlogBody,
     });
   } else next();
+}
+
+export async function handleUserLookUp(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  let condition = {};
+  if (res.locals.password) condition = { password: 1 };
+  res.locals.password = false;
+  const { userId } = matchedData(req);
+  try {
+    const user = await userModel.findById(userId, condition);
+    if (user === null) {
+      res.status(404).json({
+        errors: [{ msg: "User not found" }],
+      });
+    } else {
+      res.locals.user = user;
+    }
+  } catch (err) {
+    if (err instanceof Error && err.name === "CastError")
+      res.status(400).json({ errors: [{ msg: "User Id is invalid" }] });
+    else next(err);
+  }
+
+  next();
 }

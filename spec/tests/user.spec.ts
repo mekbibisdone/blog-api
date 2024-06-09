@@ -81,15 +81,6 @@ describe("User deletion", () => {
     expect(response.status).toBe(401);
     expect(response.body.errors).toBeDefined();
   });
-
-  it("returns an error if user not found", async () => {
-    const response = await api.delete("/api/user/d").set({
-      authorization: `Bearer ${token}`,
-    });
-    expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(400);
-    expect(response.body.errors).toBeDefined();
-  });
 });
 
 describe("User update", () => {

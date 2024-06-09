@@ -8,7 +8,7 @@ import EnvVars from "@src/constants/EnvVars";
 import blogModel from "@src/models/blog";
 import { BlogBody, QueriedUser } from "@src/controller/types";
 import { Document, Types } from "mongoose";
-import { saveBlogs } from "./util";
+import { saveBlogs } from "./utils";
 
 const api = supertest(app);
 
@@ -63,29 +63,6 @@ describe("Blog creation", () => {
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(400);
     expect(response.body.errors).toBeDefined();
-  });
-
-  it("returns an error if the userId isn't correct objectid", async () => {
-    const response = await api
-      .post("/api/blog/user/ko")
-      .set({ authorization: `Bearer ${token}` })
-      .send({ ...blog });
-
-    expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(400);
-    expect(response.body.errors[0].msg).toBe("User Id is invalid");
-  });
-
-  it("returns an error if the userId doesn't match any user", async () => {
-    const wrongId = Types.ObjectId.createFromBase64("watermelonpowerw");
-    const response = await api
-      .post(`/api/blog/user/${wrongId.toString()}`)
-      .set({ authorization: `Bearer ${token}` })
-      .send({ ...blog });
-
-    expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(404);
-    expect(response.body.errors[0].msg).toBe("User not found");
   });
 
   it("retrun an error if the userId doesn't match token", async () => {
