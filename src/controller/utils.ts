@@ -6,6 +6,7 @@ import { validationResult } from "express-validator";
 import { matchedData } from "express-validator";
 import userModel, { IUser } from "@src/models/user";
 import { BlogBody, UserBody } from "./types";
+import blogModel from "@src/models/blog";
 
 export function handleBearerToken(
   req: Request,
@@ -134,4 +135,28 @@ export function doesTokenMatchUser(
       errors: [{ msg: "Token does not match signed user" }],
     });
   }
+}
+
+export async function handleBlogLookUp(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const { blogId } = matchedData(req);
+  try {
+    const blog = await blogModel.findById(blogId);
+    if (blog === null) {
+      res.status(404).json({
+        errors: [{ msg: "Blog not found" }],
+      });
+    } else {
+      res.locals.blog = blog;
+    }
+  } catch (err) {
+    if (err instanceof Error && err.name === "CastError")
+      res.status(400).json({ errors: [{ msg: "Blog Id is invalid" }] });
+    else next(err);
+  }
+
+  next();
 }

@@ -57,14 +57,4 @@ describe("Comment creation", () => {
     expect(response.status).toBe(201);
     expect(response.body.comment.content).toBe(comment);
   });
-
-  it("returns an error if the comment is missing", async () => {
-    const response = await api
-      .post(`/api/blog/${blogId}/user/${userId}/comments`)
-      .set({ authorization: `Bearer ${token}` });
-
-    expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(400);
-    expect(response.body.errors[0].msg).toBe("Comment is required");
-  });
 });

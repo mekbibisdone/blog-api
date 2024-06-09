@@ -1,5 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
-import blogModel from "@src/models/blog";
+import blogModel, { IBlog } from "@src/models/blog";
 import commentModel from "@src/models/comment";
 import { IUser } from "@src/models/user";
 import { NextFunction, Request, Response } from "express";
@@ -10,6 +10,7 @@ import {
   doesTokenMatchUser,
   getMatchCondition,
   handleBearerToken,
+  handleBlogLookUp,
   handleUserLookUp,
   handleValidation,
 } from "./utils";
@@ -21,10 +22,10 @@ export const createComment = [
   param("blogId").trim().escape().notEmpty(),
   handleValidation,
   handleUserLookUp,
+  handleBlogLookUp,
   doesTokenMatchUser,
   async function (req: Request, res: Response, next: NextFunction) {
-    const { blogId, comment: content } = matchedData(req) as {
-      blogId: string;
+    const { comment: content } = matchedData(req) as {
       comment: string;
     };
     let user = res.locals.user as mongoose.Document<unknown, object, IUser> &
@@ -32,12 +33,13 @@ export const createComment = [
       Required<{
         _id: mongoose.Types.ObjectId;
       }>;
+    const blog = res.locals.blog as IBlog;
     user = await user.populate({
       path: "blogs",
       match: getMatchCondition(
         res.locals.token as string,
         user._id.toString(),
-        blogId,
+        blog._id.toString(),
       ),
     });
     if (!user.blogs.length) res.status(204).end();
@@ -47,7 +49,7 @@ export const createComment = [
         Temporal.Now.instant().toString(),
       ).toString();
       const savedComment = await comment.save();
-      await blogModel.findByIdAndUpdate(blogId, {
+      await blogModel.findByIdAndUpdate(blog._id.toString(), {
         $push: { comments: savedComment._id },
       });
       res.status(201).json({ comment });

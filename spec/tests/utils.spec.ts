@@ -5,6 +5,7 @@ import {
   handleUserLookUp,
   handleBearerToken,
   doesTokenMatchUser,
+  handleBlogLookUp,
 } from "@src/controller/utils";
 import TestAgent from "supertest/lib/agent";
 import bcrypt from "bcrypt";
@@ -13,6 +14,8 @@ import { Types } from "mongoose";
 import { param } from "express-validator";
 import jwt from "jsonwebtoken";
 import EnvVars from "@src/constants/EnvVars";
+import { Temporal } from "@js-temporal/polyfill";
+import blogModel from "@src/models/blog";
 
 describe("handleBearerToken middleware", () => {
   let app;
@@ -156,5 +159,52 @@ describe("doesTokenMatchUser middleware", () => {
     expect(response.body.errors[0].msg).toBe(
       "Token does not match signed user",
     );
+  });
+});
+
+describe("handleBlogLookUp middleware", () => {
+  let app;
+  let request: TestAgent;
+  const blogData = {
+    title: "Greetings",
+    content: "H".repeat(2001),
+    published: true,
+  };
+  let blogId: string;
+  beforeEach(async () => {
+    const blog = await new blogModel({
+      ...blogData,
+      timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
+    }).save();
+    blogId = blog._id.toString();
+    app = express();
+    app.get(
+      "/test/:blogId",
+      param("blogId").trim().escape().notEmpty(),
+      handleBlogLookUp,
+      (req, res) => res.status(200).json({ success: true }),
+    );
+
+    request = supertest(app);
+  });
+  it("succeeds if the blog is found", async () => {
+    const response = await request.get(`/test/${blogId}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+  });
+  it("returns with a 404 if the blog is not found", async () => {
+    const wrongId = Types.ObjectId.createFromBase64("watermelonpowerw");
+    const response = await request.get(`/test/${wrongId.toString()}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body.errors[0].msg).toBe("Blog not found");
+  });
+
+  it("returns a 400 if the blog id is invalid", async () => {
+    const response = await request.get("/test/asdf");
+
+    expect(response.status).toBe(400);
+    expect(response.body.errors[0].msg).toBe("Blog Id is invalid");
   });
 });

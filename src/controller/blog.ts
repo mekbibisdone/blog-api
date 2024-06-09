@@ -1,4 +1,4 @@
-import blogModel from "@src/models/blog";
+import blogModel, { IBlog } from "@src/models/blog";
 import { Temporal } from "@js-temporal/polyfill";
 import { NextFunction, Request, Response } from "express";
 import { body, matchedData, param } from "express-validator";
@@ -10,6 +10,7 @@ import {
   handleBearerToken,
   handleValidation,
   doesTokenMatchUser,
+  handleBlogLookUp,
 } from "./utils";
 import { BlogBody } from "./types";
 import EnvVars from "@src/constants/EnvVars";
@@ -122,21 +123,20 @@ export const getSingleBlogByAuthor = [
   param("blogId").trim().escape().notEmpty(),
   handleValidation,
   handleUserLookUp,
+  handleBlogLookUp,
   async function (req: Request, res: Response, next: NextFunction) {
-    const { blogId } = matchedData(req) as {
-      blogId: string;
-    };
     let user = res.locals.user as mongoose.Document<unknown, object, IUser> &
       IUser &
       Required<{
         _id: mongoose.Types.ObjectId;
       }>;
+    const blog = res.locals.blog as IBlog;
     user = await user.populate({
       path: "blogs",
       match: getMatchCondition(
         res.locals.token as string,
         user._id.toString(),
-        blogId,
+        blog._id.toString(),
       ),
     });
     if (!user.blogs.length) res.status(204).end();
