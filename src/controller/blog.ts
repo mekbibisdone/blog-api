@@ -139,7 +139,10 @@ export const getSingleBlogByAuthor = [
         blog._id.toString(),
       ),
     });
-    if (!user.blogs.length) res.status(204).end();
+    if (!user.blogs.length)
+      res.status(403).json({
+        errors: [{ msg: "Only the author can view their unpublished blog" }],
+      });
     else res.status(200).json({ user });
     next();
   },

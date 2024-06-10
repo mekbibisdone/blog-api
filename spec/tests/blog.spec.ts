@@ -308,7 +308,7 @@ describe("Blog fetching", () => {
     expect(userOne.blogs[0].title).toBe(savedBlogs[0].title);
   });
 
-  it("returns a 204 status code if the blog matches\
+  it("returns a 403 status code if the blog matches\
    the query but isn't published", async () => {
     const userOneBlog = Object.assign({}, blogs[0]);
     userOneBlog.published = false;
@@ -317,7 +317,10 @@ describe("Blog fetching", () => {
     const response = await api.get(
       `/api/blog/${savedBlogs[0]._id.toString()}/user/${id}/`,
     );
-    expect(response.status).toBe(204);
+    expect(response.status).toBe(403);
+    expect(response.body.errors[0].msg).toBe(
+      "Only the author can view their unpublished blog",
+    );
   });
 
   it("returns an unpublished blog if the query matches \

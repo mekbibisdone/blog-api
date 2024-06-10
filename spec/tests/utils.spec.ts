@@ -16,6 +16,8 @@ import jwt from "jsonwebtoken";
 import EnvVars from "@src/constants/EnvVars";
 import { Temporal } from "@js-temporal/polyfill";
 import blogModel from "@src/models/blog";
+import { saveBlogs } from "./utils";
+import { BlogBody } from "@src/controller/types";
 
 describe("handleBearerToken middleware", () => {
   let app;
@@ -170,17 +172,45 @@ describe("handleBlogLookUp middleware", () => {
     content: "H".repeat(2001),
     published: true,
   };
+  const blogDataTwo = {
+    title: "Greetings",
+    content: "H".repeat(2001),
+    published: true,
+  };
+  const userData = {
+    fullname: "daniel",
+    email: "d@d.com",
+    password: "g6Ol0a55&4<r",
+  };
+
+  let userId: string;
   let blogId: string;
+  let blogIdTwo: string;
+
+  const passwordHash = bcrypt.hashSync(userData.password, 10);
+
   beforeEach(async () => {
-    const blog = await new blogModel({
-      ...blogData,
+    const newUser = new userModel({
+      ...userData,
+      password: passwordHash,
+    });
+    const savedUser = await newUser.save();
+    userId = savedUser._id.toString();
+
+    const savedBlogs = await saveBlogs([blogData] as BlogBody[], savedUser);
+    blogId = savedBlogs[0]._id.toString();
+    const blogTwo = await new blogModel({
+      ...blogDataTwo,
       timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
     }).save();
-    blogId = blog._id.toString();
+
+    blogIdTwo = blogTwo._id.toString();
     app = express();
     app.get(
-      "/test/:blogId",
+      "/test/:userId/:blogId",
+      param("userId").trim().escape().notEmpty(),
       param("blogId").trim().escape().notEmpty(),
+      handleUserLookUp,
       handleBlogLookUp,
       (req, res) => res.status(200).json({ success: true }),
     );
@@ -188,23 +218,33 @@ describe("handleBlogLookUp middleware", () => {
     request = supertest(app);
   });
   it("succeeds if the blog is found", async () => {
-    const response = await request.get(`/test/${blogId}`);
+    const response = await request.get(`/test/${userId}/${blogId}`);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
   });
   it("returns with a 404 if the blog is not found", async () => {
     const wrongId = Types.ObjectId.createFromBase64("watermelonpowerw");
-    const response = await request.get(`/test/${wrongId.toString()}`);
+    const response = await request.get(`/test/${userId}/${wrongId.toString()}`);
 
     expect(response.status).toBe(404);
     expect(response.body.errors[0].msg).toBe("Blog not found");
   });
 
   it("returns a 400 if the blog id is invalid", async () => {
-    const response = await request.get("/test/asdf");
+    const response = await request.get(`/test/${userId}/asdf`);
 
     expect(response.status).toBe(400);
     expect(response.body.errors[0].msg).toBe("Blog Id is invalid");
+  });
+
+  it("returns a 403 if the blog exists but does not belong\
+    P to the specified user", async () => {
+    const response = await request.get(`/test/${userId}/${blogIdTwo}`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.errors[0].msg).toBe(
+      "Blog was found but didn't belong to specified user",
+    );
   });
 });

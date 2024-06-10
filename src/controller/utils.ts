@@ -145,12 +145,17 @@ export async function handleBlogLookUp(
   const { blogId } = matchedData(req);
   try {
     const blog = await blogModel.findById(blogId);
+    const user = res.locals.user as IUser;
     if (blog === null) {
       res.status(404).json({
         errors: [{ msg: "Blog not found" }],
       });
-    } else {
+    } else if (user.blogs.includes(blog._id)) {
       res.locals.blog = blog;
+    } else {
+      res.status(403).json({
+        errors: [{ msg: "Blog was found but didn't belong to specified user" }],
+      });
     }
   } catch (err) {
     if (err instanceof Error && err.name === "CastError")

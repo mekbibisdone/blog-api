@@ -5,7 +5,6 @@ import { IUser } from "@src/models/user";
 import { NextFunction, Request, Response } from "express";
 import { body, matchedData, param } from "express-validator";
 
-import mongoose from "mongoose";
 import {
   doesTokenMatchUser,
   handleBearerToken,
@@ -27,26 +26,12 @@ export const createComment = [
     const { comment: content } = matchedData(req) as {
       comment: string;
     };
-    let user = res.locals.user as mongoose.Document<unknown, object, IUser> &
-      IUser &
-      Required<{
-        _id: mongoose.Types.ObjectId;
-      }>;
+    const user = res.locals.user as IUser;
     const blog = res.locals.blog as IBlog;
-    const matchCondition = {
-      _id: blog._id,
-      published: true,
-    };
-    user = await user.populate({
-      path: "blogs",
-      match: matchCondition,
-    });
-    if (!user.blogs.length) {
-      if (!blog.published)
-        res
-          .status(403)
-          .json({ errors: [{ msg: "Can't comment on unpublished blog" }] });
-      else res.status(204).end();
+    if (!blog.published) {
+      res
+        .status(403)
+        .json({ errors: [{ msg: "Can't comment on unpublished blog" }] });
     } else {
       const comment = new commentModel({ content, user: user._id });
       comment.timestamp = Temporal.Instant.from(
