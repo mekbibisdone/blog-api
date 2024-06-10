@@ -63,7 +63,7 @@ describe("Comment creation", () => {
   });
 
   it("returns the saved comment if all conditions are met", async () => {
-    const comment = "w".repeat(5000);
+    const comment = "w".repeat(2);
     const response = await api
       .post(`/api/users/${userId}/blogs/${blogId}/comments`)
       .set({ authorization: `Bearer ${token}` })
@@ -76,7 +76,7 @@ describe("Comment creation", () => {
 
   it("returns a 403 if blog to be commented on is\
      unpublished", async () => {
-    const comment = "w".repeat(5000);
+    const comment = "w".repeat(500);
     const response = await api
       .post(`/api/users/${userId}/blogs/${unpublishedBlogId}/comments`)
       .set({ authorization: `Bearer ${token}` })

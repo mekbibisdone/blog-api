@@ -15,7 +15,15 @@ import {
 
 export const createComment = [
   handleBearerToken,
-  body("comment").trim().escape().notEmpty().withMessage("Comment is required"),
+  body("comment")
+    .trim()
+    .escape()
+    .notEmpty()
+    .withMessage("Comment is required")
+    .isLength({
+      min: 2,
+      max: 500,
+    }),
   param("userId").trim().escape().notEmpty(),
   param("blogId").trim().escape().notEmpty(),
   handleValidation,
