@@ -5,8 +5,9 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import EnvVars from "@src/constants/EnvVars";
 import userModel from "@src/models/user";
-import { saveBlogs } from "./utils";
-import { BlogBody } from "@src/controller/types";
+import { saveBlogs, saveComment } from "./utils";
+import { BlogBody, QueriedBlog } from "@src/controller/types";
+import { IBlog } from "@src/models/blog";
 
 const api = supertest(app);
 
@@ -85,5 +86,61 @@ describe("Comment creation", () => {
     expect(response.body.errors[0].msg).toBe(
       "Can't comment on unpublished blog",
     );
+  });
+});
+
+describe("Comment fetching", () => {
+  const userData = {
+    fullname: "daniel",
+    email: "d@d.com",
+    password: "g6Ol0a55&4<r",
+  };
+  let userId: string;
+  let blogId: string;
+
+  const blog = {
+    title: "Greetings",
+    content: "H".repeat(2001),
+    published: true,
+  };
+  const passwordHash = bcrypt.hashSync(userData.password, 10);
+
+  beforeEach(async () => {
+    const newUser = new userModel({
+      ...userData,
+      password: passwordHash,
+    });
+    const savedUser = await newUser.save();
+    userId = savedUser._id.toString();
+
+    const savedBlogs = await saveBlogs([blog] as BlogBody[], savedUser);
+    blogId = savedBlogs[0]._id.toString();
+  }, 10000);
+
+  afterEach(async () => {
+    await userModel.deleteMany({});
+    await userModel.deleteMany({});
+  });
+
+  it("returns a blog with no comments \
+    if there are no saved comments", async () => {
+    const response = await api.get(`/api/users/${userId}/blogs/${blogId}/`);
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(200);
+    const fetchedBlog = response.body.user.blogs[0] as IBlog;
+    expect(fetchedBlog.comments).toHaveSize(0);
+  });
+
+  it("returns a blog with the saved comments \
+    if a comment is saved", async () => {
+    const comment = "w".repeat(2);
+    await saveComment(blogId, userId, comment);
+    const response = await api.get(`/api/users/${userId}/blogs/${blogId}/`);
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(200);
+    const fetchedBlog = response.body.user.blogs[0] as QueriedBlog;
+    expect(fetchedBlog.comments[0].content).toBe(comment);
   });
 });

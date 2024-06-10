@@ -138,6 +138,9 @@ export const getSingleBlogByAuthor = [
         user._id.toString(),
         blog._id.toString(),
       ),
+      populate: {
+        path: "comments",
+      },
     });
     if (!user.blogs.length)
       res.status(403).json({

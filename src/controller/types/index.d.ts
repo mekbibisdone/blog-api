@@ -1,4 +1,5 @@
 import { IBlog } from "@src/models/blog";
+import { IComment } from "@src/models/comment";
 import { IUser } from "@src/models/user";
 import "express";
 
@@ -28,5 +29,7 @@ export interface QueriedUser extends IUser {
   blogs: IBlog[];
 }
 
-export interface QueriedBlog extends IBlog {}
+export interface QueriedBlog extends IBlog {
+  comments: IComment[];
+}
 export type LoginBody = Pick<UserBody, "email" | "password">;
