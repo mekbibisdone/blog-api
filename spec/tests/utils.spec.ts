@@ -6,6 +6,7 @@ import {
   handleBearerToken,
   doesTokenMatchUser,
   handleBlogLookUp,
+  handleCommentLookUp,
 } from "@src/controller/utils";
 import TestAgent from "supertest/lib/agent";
 import bcrypt from "bcrypt";
@@ -16,7 +17,7 @@ import jwt from "jsonwebtoken";
 import EnvVars from "@src/constants/EnvVars";
 import { Temporal } from "@js-temporal/polyfill";
 import blogModel from "@src/models/blog";
-import { saveBlogs } from "./utils";
+import { saveBlogs, saveComment } from "./utils";
 import { BlogBody } from "@src/controller/types";
 
 describe("handleBearerToken middleware", () => {
@@ -245,6 +246,107 @@ describe("handleBlogLookUp middleware", () => {
     expect(response.status).toBe(403);
     expect(response.body.errors[0].msg).toBe(
       "Blog was found but didn't belong to specified user",
+    );
+  });
+});
+
+describe("handleCommentLookUp middleware", () => {
+  let app;
+  let request: TestAgent;
+  const blogData = {
+    title: "Greetings",
+    content: "H".repeat(2001),
+    published: true,
+  };
+  const commentOne = "ww";
+  const blogDataTwo = {
+    title: "Greetings",
+    content: "H".repeat(2001),
+    published: true,
+  };
+  const commentTwo = "pp";
+  const userData = {
+    fullname: "daniel",
+    email: "d@d.com",
+    password: "g6Ol0a55&4<r",
+  };
+
+  let userId: string;
+  let blogId: string;
+  let blogIdTwo: string;
+  let commentId: string;
+  let commentIdTwo: string;
+
+  const passwordHash = bcrypt.hashSync(userData.password, 10);
+
+  beforeEach(async () => {
+    const newUser = new userModel({
+      ...userData,
+      password: passwordHash,
+    });
+    const savedUser = await newUser.save();
+    userId = savedUser._id.toString();
+    const savedBlogs = await saveBlogs(
+      [blogData, blogDataTwo] as BlogBody[],
+      savedUser,
+    );
+    blogId = savedBlogs[0]._id.toString();
+    commentId = (await saveComment(blogId, userId, commentOne))._id.toString();
+    blogIdTwo = savedBlogs[1]._id.toString();
+    commentIdTwo = (
+      await saveComment(blogIdTwo, userId, commentTwo)
+    )._id.toString();
+
+    app = express();
+    app.get(
+      "/test/:userId/:blogId/:commentId",
+      param("userId").trim().escape().notEmpty(),
+      param("blogId").trim().escape().notEmpty(),
+      param("commentId").trim().escape().notEmpty(),
+      handleUserLookUp,
+      handleBlogLookUp,
+      handleCommentLookUp,
+      (req, res) => res.status(200).json({ success: true }),
+    );
+
+    request = supertest(app);
+  });
+
+  it("returns a 404 if no comment is found", async () => {
+    const wrongId = Types.ObjectId.createFromBase64("watermelonpowerw");
+    const response = await request.get(
+      `/test/${userId}/${blogId}/${wrongId._id.toString()}`,
+    );
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(404);
+    expect(response.body.errors[0].msg).toBe("Comment not found");
+  });
+
+  it("succeeds if the the comment exists", async () => {
+    const response = await request.get(
+      `/test/${userId}/${blogId}/${commentId}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+  });
+
+  it("returns a 400 if the comment id is invalid", async () => {
+    const response = await request.get(`/test/${userId}/${blogId}/dsf}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.errors[0].msg).toBe("Comment Id is invalid");
+  });
+
+  it("returns a 403 if the comment exists but doesn't belong to the specified blog", async () => {
+    const response = await request.get(
+      `/test/${userId}/${blogId}/${commentIdTwo}`,
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.body.errors[0].msg).toBe(
+      "Comment was found but didn't belong to specified blog",
     );
   });
 });

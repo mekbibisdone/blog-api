@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import blogModel, { IBlog } from "@src/models/blog";
-import commentModel from "@src/models/comment";
+import commentModel, { IComment } from "@src/models/comment";
 import { IUser } from "@src/models/user";
 import { NextFunction, Request, Response } from "express";
 import { body, matchedData, param } from "express-validator";
@@ -9,6 +9,7 @@ import {
   doesTokenMatchUser,
   handleBearerToken,
   handleBlogLookUp,
+  handleCommentLookUp,
   handleUserLookUp,
   handleValidation,
 } from "./utils";
@@ -51,6 +52,21 @@ export const createComment = [
       });
       res.status(201).json({ comment });
     }
+    next();
+  },
+];
+
+export const getComment = [
+  param("userId").trim().escape().notEmpty(),
+  param("blogId").trim().escape().notEmpty(),
+  param("commentId").trim().escape().notEmpty(),
+  handleValidation,
+  handleUserLookUp,
+  handleBlogLookUp,
+  handleCommentLookUp,
+  function (req: Request, res: Response, next: NextFunction) {
+    const comment = res.locals.comment as IComment;
+    res.status(200).json({ comment });
     next();
   },
 ];

@@ -38,5 +38,5 @@ export async function saveComment(
     $push: { comments: savedComment._id },
   });
 
-  return saveComment;
+  return savedComment;
 }

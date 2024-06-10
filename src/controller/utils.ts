@@ -6,7 +6,8 @@ import { validationResult } from "express-validator";
 import { matchedData } from "express-validator";
 import userModel, { IUser } from "@src/models/user";
 import { BlogBody, UserBody } from "./types";
-import blogModel from "@src/models/blog";
+import blogModel, { IBlog } from "@src/models/blog";
+import commentModel from "@src/models/comment";
 
 export function handleBearerToken(
   req: Request,
@@ -163,5 +164,34 @@ export async function handleBlogLookUp(
     else next(err);
   }
 
+  next();
+}
+
+export async function handleCommentLookUp(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const { commentId } = matchedData(req) as {
+    commentId: string;
+  };
+  try {
+    const blog = res.locals.blog as IBlog;
+    const comment = await commentModel.findById(commentId);
+    if (comment !== null) {
+      if (blog.comments.includes(comment._id)) {
+        res.locals.comment = comment;
+      } else
+        res.status(403).json({
+          errors: [
+            { msg: "Comment was found but didn't belong to specified blog" },
+          ],
+        });
+    } else res.status(404).json({ errors: [{ msg: "Comment not found" }] });
+  } catch (err) {
+    if (err instanceof Error && err.name === "CastError")
+      res.status(400).json({ errors: [{ msg: "Comment Id is invalid" }] });
+    else next(err);
+  }
   next();
 }

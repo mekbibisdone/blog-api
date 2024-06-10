@@ -143,4 +143,17 @@ describe("Comment fetching", () => {
     const fetchedBlog = response.body.user.blogs[0] as QueriedBlog;
     expect(fetchedBlog.comments[0].content).toBe(comment);
   });
+
+  it("returns a single comment if the comment exists", async () => {
+    const comment = "w".repeat(2);
+    const commentId = (await saveComment(blogId, userId, comment))._id;
+    const response = await api.get(
+      `/api/users/${userId}/blogs/${blogId}/comments/\
+      ${commentId._id.toString()}`,
+    );
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(200);
+    expect(response.body.comment.content).toBe(comment);
+  });
 });

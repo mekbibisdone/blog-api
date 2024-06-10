@@ -3,8 +3,8 @@ import {
   createBlog,
   getSingleBlogByAuthor,
 } from "@src/controller/blog";
-import { createComment } from "@src/controller/comment";
 import { Router } from "express";
+import commentRouter from "./comment";
 
 const blogRouter = Router({ mergeParams: true });
 
@@ -13,6 +13,6 @@ blogRouter.post("/", createBlog);
 
 blogRouter.get("/:blogId", getSingleBlogByAuthor);
 
-blogRouter.post("/:blogId/comments", createComment);
+blogRouter.use("/:blogId/comments", commentRouter);
 
 export default blogRouter;
