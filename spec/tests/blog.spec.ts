@@ -8,7 +8,8 @@ import EnvVars from "@src/constants/EnvVars";
 import blogModel from "@src/models/blog";
 import { BlogBody, QueriedUser } from "@src/controller/types";
 import { Document, Types } from "mongoose";
-import { saveBlogs } from "./utils";
+import { saveBlogs, saveComment } from "./utils";
+import commentModel from "@src/models/comment";
 
 const api = supertest(app);
 
@@ -337,5 +338,82 @@ describe("Blog fetching", () => {
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(200);
     expect(userOne.blogs[0].title).toBe(savedBlogs[0].title);
+  });
+});
+
+describe("Blog deletion", () => {
+  const userData = {
+    fullname: "daniel",
+    email: "d@d.com",
+    password: "g6Ol0a55&4<r",
+  };
+  let savedUser: Document<unknown, object, IUser> &
+    IUser &
+    Required<{ _id: Types.ObjectId }>;
+
+  let userId: string;
+  let blogId: string;
+  let token: string;
+  const blogs = [
+    {
+      title: "Greetings",
+      content: "H".repeat(2001),
+      published: true,
+    },
+  ];
+  const passwordHash = bcrypt.hashSync(userData.password, 10);
+
+  beforeEach(async () => {
+    const newUser = new userModel({
+      ...userData,
+      password: passwordHash,
+    });
+    savedUser = await newUser.save();
+
+    userId = savedUser._id.toString();
+    token = jwt.sign(
+      { fullname: userData.fullname, email: userData.email, id: userId },
+      EnvVars.Jwt.Secret,
+    );
+    const savedBlogs = await saveBlogs(blogs as BlogBody[], savedUser);
+    blogId = savedBlogs[0]._id.toString();
+  }, 10000);
+
+  afterEach(async () => {
+    await userModel.deleteMany({});
+    await blogModel.deleteMany({});
+  });
+
+  it("successfully deletes the blog", async () => {
+    const response = await api
+      .delete(`/api/users/${userId}/blogs/${blogId}`)
+      .set({ authorization: `Bearer ${token}` });
+    const author = (await userModel.findById(userId)) as IUser;
+    const deletedBlog = await blogModel.findById(blogId);
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(200);
+    expect(response.body.msg).toBe(`${blogs[0].title} was deleted`);
+    expect(deletedBlog).toBe(null);
+    expect(author.blogs).toHaveSize(0);
+  });
+
+  it("successfully deletes all \
+    the comments associated with it as well", async () => {
+    const comment = "ww";
+    const storedComment = await saveComment(blogId, userId, comment);
+    const response = await api
+      .delete(`/api/users/${userId}/blogs/${blogId}`)
+      .set({ authorization: `Bearer ${token}` });
+    const author = (await userModel.findById(userId)) as IUser;
+    const deletedBlog = await blogModel.findById(blogId);
+    const deletedComment = await commentModel.findById(storedComment._id);
+
+    expect(response.headers["content-type"]).toMatch(/json/);
+    expect(response.status).toBe(200);
+    expect(response.body.msg).toBe(`${blogs[0].title} was deleted`);
+    expect(deletedBlog).toBe(null);
+    expect(deletedComment).toBe(null);
+    expect(author.blogs).toHaveSize(0);
   });
 });

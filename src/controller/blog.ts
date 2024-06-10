@@ -16,6 +16,7 @@ import { BlogBody } from "./types";
 import EnvVars from "@src/constants/EnvVars";
 import userModel, { IUser } from "@src/models/user";
 import mongoose from "mongoose";
+import commentModel from "@src/models/comment";
 
 export const createBlog = [
   handleBearerToken,
@@ -147,6 +148,32 @@ export const getSingleBlogByAuthor = [
         errors: [{ msg: "Only the author can view their unpublished blog" }],
       });
     else res.status(200).json({ user });
+    next();
+  },
+];
+
+export const deleteBlog = [
+  handleBearerToken,
+  param("userId").trim().escape().notEmpty(),
+  param("blogId").trim().escape().notEmpty(),
+  handleValidation,
+  handleUserLookUp,
+  doesTokenMatchUser,
+  handleBlogLookUp,
+  async function (req: Request, res: Response, next: NextFunction) {
+    try {
+      const blog = res.locals.blog as IBlog;
+      const user = res.locals.user as IUser;
+      await blogModel.findByIdAndDelete(blog._id);
+      await userModel.findByIdAndUpdate(user._id, {
+        $pull: { blogs: blog._id },
+      });
+      if (blog.comments.length)
+        await commentModel.deleteMany({ _id: { $in: blog.comments } });
+      res.status(200).json({ msg: `${blog.title} was deleted` });
+    } catch (err) {
+      next(err);
+    }
     next();
   },
 ];
