@@ -18,7 +18,7 @@ describe("Blog creation", () => {
     email: "d@d.com",
     password: "g6Ol0a55&4<r",
   };
-  let id: string;
+  let userId: string;
   let token: string;
   const blog = {
     title: "Greetings",
@@ -32,9 +32,9 @@ describe("Blog creation", () => {
       password: passwordHash,
     });
     const savedUser = (await newUser.save()).toJSON();
-    id = savedUser._id.toString();
+    userId = savedUser._id.toString();
     token = jwt.sign(
-      { fullname: userData.fullname, email: userData.email, id },
+      { fullname: userData.fullname, email: userData.email, id: userId },
       EnvVars.Jwt.Secret,
     );
   }, 10000);
@@ -43,7 +43,7 @@ describe("Blog creation", () => {
   });
   it("returns the saved blogs if all requirements are met", async () => {
     const response = await api
-      .post(`/api/blog/user/${id}`)
+      .post(`/api/users/${userId}/blogs`)
       .set({ authorization: `Bearer ${token}` })
       .send({ ...blog });
 
@@ -57,7 +57,7 @@ describe("Blog creation", () => {
 
   it("returns an error if the blog data isn't sent", async () => {
     const response = await api
-      .post(`/api/blog/user/${id}`)
+      .post(`/api/users/${userId}/blogs`)
       .set({ authorization: `Bearer ${token}` });
 
     expect(response.headers["content-type"]).toMatch(/json/);
@@ -68,7 +68,7 @@ describe("Blog creation", () => {
   it("returns an error if content length is\
    higher than the limit", async () => {
     const response = await api
-      .post(`/api/blog/user/${id}`)
+      .post(`/api/users/${userId}/blogs`)
       .set({ authorization: `Bearer ${token}` })
       .send({ ...blog, content: "a".repeat(70000 + 1) });
 
@@ -81,7 +81,7 @@ describe("Blog creation", () => {
   it("returns an error if the content length is\
    lower than the limit", async () => {
     const response = await api
-      .post(`/api/blog/user/${id}`)
+      .post(`/api/users/${userId}/blogs`)
       .set({ authorization: `Bearer ${token}` })
       .send({ ...blog, content: "a".repeat(2000 - 1) });
 
@@ -93,7 +93,7 @@ describe("Blog creation", () => {
   });
   it("returns an error if title length is higher than the limit", async () => {
     const response = await api
-      .post(`/api/blog/user/${id}`)
+      .post(`/api/users/${userId}/blogs`)
       .set({ authorization: `Bearer ${token}` })
       .send({ ...blog, title: "a".repeat(60 + 1) });
 
@@ -106,7 +106,7 @@ describe("Blog creation", () => {
   it("returns an error if the title length is \
   lower than the limit", async () => {
     const response = await api
-      .post(`/api/blog/user/${id}`)
+      .post(`/api/users/${userId}/blogs`)
       .set({ authorization: `Bearer ${token}` })
       .send({ ...blog, title: "a".repeat(2 - 1) });
 
@@ -118,7 +118,7 @@ describe("Blog creation", () => {
   });
   it("returns an error if published is not a boolean", async () => {
     const response = await api
-      .post(`/api/blog/user/${id}`)
+      .post(`/api/users/${userId}/blogs`)
       .set({ authorization: `Bearer ${token}` })
       .send({ ...blog, published: "loop" });
 
@@ -148,7 +148,7 @@ describe("Blog fetching", () => {
     IUser &
     Required<{ _id: Types.ObjectId }>;
 
-  let id: string;
+  let userId: string;
   let token: string;
   const blogs = [
     {
@@ -192,9 +192,9 @@ describe("Blog fetching", () => {
     savedUser = await newUser.save();
     savedUserTwo = await newUserTwo.save();
 
-    id = savedUser._id.toString();
+    userId = savedUser._id.toString();
     token = jwt.sign(
-      { fullname: userData.fullname, email: userData.email, id },
+      { fullname: userData.fullname, email: userData.email, id: userId },
       EnvVars.Jwt.Secret,
     );
   }, 10000);
@@ -206,7 +206,7 @@ describe("Blog fetching", () => {
 
   it("returns an empty list if there\
    are no blogs currently saved", async () => {
-    const response = await api.get("/api/blog");
+    const response = await api.get("/api/users");
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(200);
     expect(response.body.users[0].blogs).toEqual([]);
@@ -214,10 +214,10 @@ describe("Blog fetching", () => {
 
   it("returns a list of blogs if there are blogs currently saved", async () => {
     await saveBlogs(blogs as BlogBody[], savedUser);
-    const response = await api.get("/api/blog");
+    const response = await api.get("/api/users");
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     const userOne = response.body.users.filter(
-      (user: { _id: string }) => user._id.toString() === id,
+      (user: { _id: string }) => user._id.toString() === userId,
     )[0] as QueriedUser;
 
     expect(response.headers["content-type"]).toMatch(/json/);
@@ -231,10 +231,10 @@ describe("Blog fetching", () => {
     blogsCopy[0].published = false;
     blogsCopy[1].published = false;
     await saveBlogs(blogsCopy as BlogBody[], savedUser);
-    const response = await api.get("/api/blog");
+    const response = await api.get("/api/users");
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     const userOne = response.body.users.filter(
-      (user: { _id: string }) => user._id.toString() === id,
+      (user: { _id: string }) => user._id.toString() === userId,
     )[0] as QueriedUser;
 
     expect(response.headers["content-type"]).toMatch(/json/);
@@ -251,7 +251,7 @@ describe("Blog fetching", () => {
       savedUser,
     );
     await saveBlogs([userTwoBlog] as BlogBody[], savedUserTwo);
-    const response = await api.get(`/api/blog/user/${id}`);
+    const response = await api.get(`/api/users/${userId}/blogs/`);
     const userOne = response.body.user as QueriedUser;
 
     expect(response.headers["content-type"]).toMatch(/json/);
@@ -269,7 +269,7 @@ describe("Blog fetching", () => {
     await saveBlogs([userOneBlog, userOneBlogTwo] as BlogBody[], savedUser);
     await saveBlogs([userTwoBlog] as BlogBody[], savedUserTwo);
 
-    const response = await api.get(`/api/blog/user/${id}`);
+    const response = await api.get(`/api/users/${userId}/blogs`);
     const userOne = response.body.user as QueriedUser;
 
     expect(response.headers["content-type"]).toMatch(/json/);
@@ -285,7 +285,7 @@ describe("Blog fetching", () => {
     await saveBlogs([userOneBlog, userOneBlogTwo] as BlogBody[], savedUser);
 
     const response = await api
-      .get(`/api/blog/user/${id}`)
+      .get(`/api/users/${userId}/blogs`)
       .set({ authorization: `Bearer ${token}` });
     const userOne = response.body.user as QueriedUser;
 
@@ -299,7 +299,7 @@ describe("Blog fetching", () => {
     const savedBlogs = await saveBlogs([userOneBlog as BlogBody], savedUser);
 
     const response = await api.get(
-      `/api/blog/${savedBlogs[0]._id.toString()}/user/${id}/`,
+      `/api/users/${userId}/blogs/${savedBlogs[0]._id.toString()}`,
     );
     const userOne = response.body.user as QueriedUser;
 
@@ -315,7 +315,7 @@ describe("Blog fetching", () => {
     const savedBlogs = await saveBlogs([userOneBlog as BlogBody], savedUser);
 
     const response = await api.get(
-      `/api/blog/${savedBlogs[0]._id.toString()}/user/${id}/`,
+      `/api/users/${userId}/blogs/${savedBlogs[0]._id.toString()}`,
     );
     expect(response.status).toBe(403);
     expect(response.body.errors[0].msg).toBe(
@@ -330,7 +330,7 @@ describe("Blog fetching", () => {
     const savedBlogs = await saveBlogs([userOneBlog as BlogBody], savedUser);
 
     const response = await api
-      .get(`/api/blog/${savedBlogs[0]._id.toString()}/user/${id}/`)
+      .get(`/api/users/${userId}/blogs/${savedBlogs[0]._id.toString()}`)
       .set({ authorization: `Bearer ${token}` });
     const userOne = response.body.user as QueriedUser;
 

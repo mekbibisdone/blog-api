@@ -1,17 +1,18 @@
-import { createBlog, getAllBlogs } from "@src/controller/blog";
-import { getSingleBlogByAuthor, getBlogsByAuthor } from "@src/controller/blog";
+import {
+  getBlogsByAuthor,
+  createBlog,
+  getSingleBlogByAuthor,
+} from "@src/controller/blog";
 import { createComment } from "@src/controller/comment";
 import { Router } from "express";
 
-const blogRouter = Router();
+const blogRouter = Router({ mergeParams: true });
 
-blogRouter.get("/", getAllBlogs);
+blogRouter.get("/", getBlogsByAuthor);
 blogRouter.post("/", createBlog);
 
-blogRouter.get("/user/:userId", getBlogsByAuthor);
-blogRouter.post("/user/:userId", createBlog);
+blogRouter.get("/:blogId", getSingleBlogByAuthor);
 
-blogRouter.get("/:blogId/user/:userId", getSingleBlogByAuthor);
+blogRouter.post("/:blogId/comments", createComment);
 
-blogRouter.post("/:blogId/user/:userId/comments", createComment);
 export default blogRouter;

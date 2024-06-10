@@ -65,7 +65,7 @@ describe("Comment creation", () => {
   it("returns the saved comment if all conditions are met", async () => {
     const comment = "w".repeat(5000);
     const response = await api
-      .post(`/api/blog/${blogId}/user/${userId}/comments`)
+      .post(`/api/users/${userId}/blogs/${blogId}/comments`)
       .set({ authorization: `Bearer ${token}` })
       .send({ comment });
 
@@ -78,7 +78,7 @@ describe("Comment creation", () => {
      unpublished", async () => {
     const comment = "w".repeat(5000);
     const response = await api
-      .post(`/api/blog/${unpublishedBlogId}/user/${userId}/comments`)
+      .post(`/api/users/${userId}/blogs/${unpublishedBlogId}/comments`)
       .set({ authorization: `Bearer ${token}` })
       .send({ comment });
     expect(response.status).toBe(403);

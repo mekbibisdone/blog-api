@@ -11,7 +11,7 @@ const api = supertest(app);
 describe("User creation", () => {
   it("saves a user and return user data & token,\
  if all given fields are valid", async () => {
-    const response = await api.post("/api/user").send({
+    const response = await api.post("/api/users").send({
       fullname: "daniel",
       email: "daniel@d.com",
       password: "g6Ol0a55&4<r",
@@ -32,7 +32,7 @@ if any of the sent fields are invalid", async () => {
       password: "a",
       passwordConfirmation: "c",
     };
-    const response = await api.post("/api/user").send(incorrectData);
+    const response = await api.post("/api/users").send(incorrectData);
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(400);
     expect(response.body.errors).toBeDefined();
@@ -64,7 +64,7 @@ describe("User deletion", () => {
   }, 10000);
 
   it("returns a successful message when a correct token is sent", async () => {
-    const response = await api.delete(`/api/user/${id}`).set({
+    const response = await api.delete(`/api/users/${id}`).set({
       authorization: `Bearer ${token}`,
     });
     expect(response.headers["content-type"]).toMatch(/json/);
@@ -99,7 +99,7 @@ describe("User update", () => {
   it("updates the fullname and returns the updated data", async () => {
     const newFullName = { fullname: "Paulo Santos" };
     const response = await api
-      .put(`/api/user/${id}/fullname`)
+      .put(`/api/users/${id}/fullname`)
       .set({
         authorization: `Bearer ${token}`,
       })
@@ -110,7 +110,7 @@ describe("User update", () => {
   });
 
   it("returns an error if data validation fails", async () => {
-    const response = await api.put(`/api/user/${id}/fullname`).set({
+    const response = await api.put(`/api/users/${id}/fullname`).set({
       authorization: `Bearer ${token}`,
     });
     expect(response.headers["content-type"]).toMatch(/json/);
@@ -124,7 +124,7 @@ describe("User update", () => {
     const newPassword = "6<9C6_]8Z3l}";
 
     const response = await api
-      .put(`/api/user/${id}/password`)
+      .put(`/api/users/${id}/password`)
       .set({
         authorization: `Bearer ${token}`,
       })
@@ -142,7 +142,7 @@ describe("User update", () => {
     const newPassword = "6<9C6_]8Z3l}";
 
     const response = await api
-      .put(`/api/user/${id}/password`)
+      .put(`/api/users/${id}/password`)
       .set({
         authorization: `Bearer ${token}`,
       })
@@ -161,7 +161,7 @@ describe("User update", () => {
     const newPassword = "abc";
 
     const response = await api
-      .put(`/api/user/${id}/password`)
+      .put(`/api/users/${id}/password`)
       .set({
         authorization: `Bearer ${token}`,
       })
