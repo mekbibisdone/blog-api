@@ -116,7 +116,7 @@ export const updateFullname = [
       fullname: fullname as string,
     });
     const updatedUser = await userModel.findById(user._id, { password: 0 });
-    res.status(201).json(updatedUser);
+    res.status(200).json(updatedUser);
 
     next();
   },
@@ -151,7 +151,7 @@ export const updatePassword = [
       await userModel.findByIdAndUpdate(user._id, {
         password: newPasswordHash,
       });
-      res.status(201).json({ msg: "Password successfully changed" });
+      res.status(200).json({ msg: "Password successfully changed" });
     } else {
       res.status(401).json({
         errors: [{ msg: "Old password does not match" }],

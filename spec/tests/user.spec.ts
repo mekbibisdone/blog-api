@@ -105,7 +105,7 @@ describe("User update", () => {
       })
       .send(newFullName);
     expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     expect(response.body.fullname).toBe(newFullName.fullname);
   });
 
@@ -133,8 +133,8 @@ describe("User update", () => {
         newPassword,
       });
     expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(201);
-    expect(response.body.msg).toBeDefined();
+    expect(response.status).toBe(200);
+    expect(response.body.msg).toBe("Password successfully changed");
   });
 
   it("returns an error if old password does not match", async () => {
