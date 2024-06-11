@@ -155,14 +155,14 @@ describe("doesTokenMatchUser middleware", () => {
     expect(response.body.success).toBe(true);
   });
 
-  it("responds with 401 if token does not match signed user", async () => {
+  it("responds with 401 if token does not match sent user", async () => {
     const response = await request
       .get(`/test/${userId}`)
       .set({ authorization: `Bearer ${tokenTwo}` });
 
     expect(response.status).toBe(401);
     expect(response.body.errors[0].msg).toBe(
-      "Token does not match signed user",
+      "Signed user does not match sent user",
     );
   });
 });

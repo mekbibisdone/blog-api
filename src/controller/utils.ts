@@ -133,7 +133,7 @@ export function doesTokenMatchUser(
     next();
   } else {
     res.status(401).json({
-      errors: [{ msg: "Token does not match signed user" }],
+      errors: [{ msg: "Signed user does not match sent user" }],
     });
   }
 }
