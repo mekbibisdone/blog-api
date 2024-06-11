@@ -243,5 +243,6 @@ export const commentValidationChain = () => [
     .notEmpty()
     .withMessage("Published is required")
     .isBoolean()
+    .toBoolean()
     .withMessage("Published must be a boolean value"),
 ];

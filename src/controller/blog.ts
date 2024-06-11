@@ -164,13 +164,13 @@ export const updateBlog = [
       const { title, content, published } = matchedData(req) as {
         title: string;
         content: string;
-        published: string;
+        published: boolean;
       };
       const toBeChanged: Partial<{
         title: string;
         content: string;
         published: boolean;
-      }> = { title, content, published: Boolean(published) };
+      }> = { title, content, published: published };
       const blog = res.locals.blog as IBlog;
       let keys = Object.keys(toBeChanged) as Array<keyof typeof toBeChanged>;
       for (const key of keys) {
@@ -187,9 +187,7 @@ export const updateBlog = [
         const updatedBlog = await blogModel.findByIdAndUpdate(
           blog._id,
           {
-            title,
-            content,
-            published,
+            ...toBeChanged,
             editedOn,
           },
           { new: true },
