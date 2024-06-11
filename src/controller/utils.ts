@@ -7,7 +7,7 @@ import { matchedData } from "express-validator";
 import userModel, { IUser } from "@src/models/user";
 import { BlogBody, UserBody } from "./types";
 import blogModel, { IBlog } from "@src/models/blog";
-import commentModel from "@src/models/comment";
+import commentModel, { IComment } from "@src/models/comment";
 
 export function handleBearerToken(
   req: Request,
@@ -134,6 +134,26 @@ export function doesTokenMatchUser(
   } else {
     res.status(401).json({
       errors: [{ msg: "Token does not match signed user" }],
+    });
+  }
+}
+
+export function doesTokenMatchCommentUser(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const decoded = jwt.verify(res.locals.token as string, EnvVars.Jwt.Secret);
+  const comment = res.locals.comment as IComment;
+  if (
+    typeof decoded === "object" &&
+    "id" in decoded &&
+    decoded.id === comment.user.toString()
+  ) {
+    next();
+  } else {
+    res.status(401).json({
+      errors: [{ msg: "Comment doesn't belong to signed user" }],
     });
   }
 }

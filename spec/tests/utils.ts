@@ -3,6 +3,8 @@ import { BlogBody } from "@src/controller/types";
 import blogModel, { IBlog } from "@src/models/blog";
 import commentModel from "@src/models/comment";
 import { IUser } from "@src/models/user";
+import { NextFunction, Request, Response } from "express";
+import { matchedData } from "express-validator";
 import { Document, Types } from "mongoose";
 
 export async function saveBlogs(
@@ -39,4 +41,17 @@ export async function saveComment(
   });
 
   return savedComment;
+}
+
+export async function findAttachComment(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const { commentId } = matchedData(req) as {
+    commentId: string;
+  };
+  const comment = await commentModel.findById(commentId);
+  res.locals.comment = comment;
+  next();
 }

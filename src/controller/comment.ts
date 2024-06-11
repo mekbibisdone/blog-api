@@ -6,6 +6,7 @@ import { NextFunction, Request, Response } from "express";
 import { body, matchedData, param } from "express-validator";
 
 import {
+  doesTokenMatchCommentUser,
   doesTokenMatchUser,
   handleBearerToken,
   handleBlogLookUp,
@@ -68,5 +69,32 @@ export const getComment = [
     const comment = res.locals.comment as IComment;
     res.status(200).json({ comment });
     next();
+  },
+];
+
+export const deleteComment = [
+  param("userId").trim().escape().notEmpty(),
+  param("blogId").trim().escape().notEmpty(),
+  param("commentId").trim().escape().notEmpty(),
+  handleBearerToken,
+  handleValidation,
+  handleUserLookUp,
+  handleBlogLookUp,
+  handleCommentLookUp,
+  doesTokenMatchCommentUser,
+  async function (req: Request, res: Response, next: NextFunction) {
+    try {
+      const comment = res.locals.comment as IComment;
+      await commentModel.findByIdAndDelete(comment._id);
+
+      const blog = res.locals.blog as IBlog;
+      await blogModel.findByIdAndUpdate(blog._id, {
+        $pull: { comments: comment._id },
+      });
+
+      res.status(200).json({ msg: "Comment was deleted" });
+    } catch (err) {
+      next(err);
+    }
   },
 ];

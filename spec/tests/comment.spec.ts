@@ -7,7 +7,8 @@ import EnvVars from "@src/constants/EnvVars";
 import userModel from "@src/models/user";
 import { saveBlogs, saveComment } from "./utils";
 import { BlogBody, QueriedBlog } from "@src/controller/types";
-import { IBlog } from "@src/models/blog";
+import blogModel, { IBlog } from "@src/models/blog";
+import commentModel from "@src/models/comment";
 
 const api = supertest(app);
 
@@ -155,5 +156,69 @@ describe("Comment fetching", () => {
     expect(response.headers["content-type"]).toMatch(/json/);
     expect(response.status).toBe(200);
     expect(response.body.comment.content).toBe(comment);
+  });
+});
+
+describe("Comment deletion", () => {
+  const userData = {
+    fullname: "daniel",
+    email: "d@d.com",
+    password: "g6Ol0a55&4<r",
+  };
+
+  const comment = "ww";
+
+  const blog = {
+    title: "Greetings",
+    content: "H".repeat(2001),
+    published: true,
+  };
+
+  let userId: string;
+  let blogId: string;
+  let commentId: string;
+
+  let token: string;
+
+  const passwordHash = bcrypt.hashSync(userData.password, 10);
+
+  beforeEach(async () => {
+    const newUser = new userModel({
+      ...userData,
+      password: passwordHash,
+    });
+    const savedUser = await newUser.save();
+    userId = savedUser._id.toString();
+    token = jwt.sign(
+      { fullname: userData.fullname, email: userData.email, id: userId },
+      EnvVars.Jwt.Secret,
+    );
+
+    const savedBlogs = await saveBlogs([blog] as BlogBody[], savedUser);
+    blogId = savedBlogs[0]._id.toString();
+
+    const savedComment = await saveComment(blogId, userId, comment);
+    commentId = savedComment._id.toString();
+  }, 10000);
+
+  afterEach(async () => {
+    await userModel.deleteMany({});
+    await userModel.deleteMany({});
+  });
+
+  it("successfully deletes the comment", async () => {
+    const response = await api
+      .delete(
+        `/api/users/${userId}/blogs/${blogId}/comments/\
+      ${commentId}`,
+      )
+      .set({ authorization: `Bearer ${token}` });
+    const blogWithComment = await blogModel.findById(blogId);
+    const deletedComment = await commentModel.findById(commentId);
+
+    expect(response.status).toBe(200);
+    expect(response.body.msg).toBe("Comment was deleted");
+    expect(blogWithComment?.comments).toHaveSize(0);
+    expect(deletedComment).toBeNull();
   });
 });

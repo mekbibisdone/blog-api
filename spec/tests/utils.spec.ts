@@ -7,6 +7,7 @@ import {
   doesTokenMatchUser,
   handleBlogLookUp,
   handleCommentLookUp,
+  doesTokenMatchCommentUser,
 } from "@src/controller/utils";
 import TestAgent from "supertest/lib/agent";
 import bcrypt from "bcrypt";
@@ -17,8 +18,9 @@ import jwt from "jsonwebtoken";
 import EnvVars from "@src/constants/EnvVars";
 import { Temporal } from "@js-temporal/polyfill";
 import blogModel from "@src/models/blog";
-import { saveBlogs, saveComment } from "./utils";
+import { findAttachComment, saveBlogs, saveComment } from "./utils";
 import { BlogBody } from "@src/controller/types";
+import commentModel from "@src/models/comment";
 
 describe("handleBearerToken middleware", () => {
   let app;
@@ -347,6 +349,63 @@ describe("handleCommentLookUp middleware", () => {
     expect(response.status).toBe(403);
     expect(response.body.errors[0].msg).toBe(
       "Comment was found but didn't belong to specified blog",
+    );
+  });
+});
+
+describe("doesTokenMatchCommentUser middleware", () => {
+  let app;
+  let request: TestAgent;
+
+  let commentId: string;
+
+  let token: string;
+  let wrongToken: string;
+  beforeEach(async () => {
+    const correctId = Types.ObjectId.createFromBase64("watermelonpowerp");
+    const savedComment = await new commentModel({
+      content: "ww",
+      user: correctId,
+      timestamp: Temporal.Instant.from(Temporal.Now.instant().toString()),
+    }).save();
+
+    commentId = savedComment._id.toString();
+
+    token = jwt.sign({ id: correctId }, EnvVars.Jwt.Secret);
+
+    const wrongId = Types.ObjectId.createFromBase64("watermelonpowerw");
+    wrongToken = jwt.sign({ id: wrongId }, EnvVars.Jwt.Secret);
+
+    app = express();
+    app.get(
+      "/test/:commentId",
+      param("commentId").trim().escape().notEmpty(),
+      findAttachComment,
+      handleBearerToken,
+      doesTokenMatchCommentUser,
+      (req, res) => res.status(200).json({ success: true }),
+    );
+
+    request = supertest(app);
+  });
+
+  it("succeeds if the comment's user matches token", async () => {
+    const response = await request
+      .get(`/test/${commentId}`)
+      .set({ authorization: `Bearer ${token}` });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+  });
+
+  it("returns a 401 if the token does not match comment's user", async () => {
+    const response = await request
+      .get(`/test/${commentId}`)
+      .set({ authorization: `Bearer ${wrongToken}` });
+
+    expect(response.status).toBe(401);
+    expect(response.body.errors[0].msg).toBe(
+      "Comment doesn't belong to signed user",
     );
   });
 });
