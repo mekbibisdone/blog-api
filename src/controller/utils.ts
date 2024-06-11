@@ -216,7 +216,7 @@ export async function handleCommentLookUp(
   next();
 }
 
-export const commentValidationChain = () => [
+export const blogValidationChain = () => [
   body("title")
     .trim()
     .escape()
