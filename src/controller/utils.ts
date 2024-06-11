@@ -2,7 +2,7 @@ import EnvVars from "@src/constants/EnvVars";
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
-import { validationResult } from "express-validator";
+import { body, validationResult } from "express-validator";
 import { matchedData } from "express-validator";
 import userModel, { IUser } from "@src/models/user";
 import { BlogBody, UserBody } from "./types";
@@ -215,3 +215,33 @@ export async function handleCommentLookUp(
   }
   next();
 }
+
+export const commentValidationChain = () => [
+  body("title")
+    .trim()
+    .escape()
+    .notEmpty()
+    .withMessage("Title is required")
+    .isLength({
+      min: 2,
+      max: 60,
+    })
+    .withMessage("Title must be between 2 and 60 characters"),
+  body("content")
+    .trim()
+    .escape()
+    .notEmpty()
+    .withMessage("Content is required")
+    .isLength({
+      min: 2000,
+      max: 70000,
+    })
+    .withMessage("Content must be between 2000 and 70000 characters"),
+  body("published")
+    .trim()
+    .escape()
+    .notEmpty()
+    .withMessage("Published is required")
+    .isBoolean()
+    .withMessage("Published must be a boolean value"),
+];

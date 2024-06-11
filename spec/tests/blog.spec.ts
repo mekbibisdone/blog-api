@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import userModel, { IUser } from "@src/models/user";
 import EnvVars from "@src/constants/EnvVars";
-import blogModel from "@src/models/blog";
+import blogModel, { IBlog } from "@src/models/blog";
 import { BlogBody, QueriedUser } from "@src/controller/types";
 import { Document, Types } from "mongoose";
 import { saveBlogs, saveComment } from "./utils";
@@ -415,5 +415,71 @@ describe("Blog deletion", () => {
     expect(deletedBlog).toBe(null);
     expect(deletedComment).toBe(null);
     expect(author.blogs).toHaveSize(0);
+  });
+});
+
+describe("Blog update", () => {
+  const userData = {
+    fullname: "daniel",
+    email: "d@d.com",
+    password: "g6Ol0a55&4<r",
+  };
+  let savedUser: Document<unknown, object, IUser> &
+    IUser &
+    Required<{ _id: Types.ObjectId }>;
+
+  let userId: string;
+  let blogId: string;
+  let token: string;
+  const blogs = [
+    {
+      title: "Greetings",
+      content: "H".repeat(2001),
+      published: true,
+    },
+  ];
+  const passwordHash = bcrypt.hashSync(userData.password, 10);
+
+  beforeEach(async () => {
+    const newUser = new userModel({
+      ...userData,
+      password: passwordHash,
+    });
+    savedUser = await newUser.save();
+
+    userId = savedUser._id.toString();
+    token = jwt.sign(
+      { fullname: userData.fullname, email: userData.email, id: userId },
+      EnvVars.Jwt.Secret,
+    );
+    const savedBlogs = await saveBlogs(blogs as BlogBody[], savedUser);
+    blogId = savedBlogs[0]._id.toString();
+  }, 10000);
+
+  afterEach(async () => {
+    await userModel.deleteMany({});
+    await blogModel.deleteMany({});
+  });
+
+  it("successfully updates \
+    if all data is sent and token is correct", async () => {
+    const response = await api
+      .put(`/api/users/${userId}/blogs/${blogId}`)
+      .set({ authorization: `Bearer ${token}` })
+      .send({
+        title: "Greetings",
+        content: "Hhh".repeat(2001),
+        published: false,
+      });
+
+    expect(response.status).toBe(200);
+    const { title, content, published } = response.body.blog as IBlog;
+    const updatedBlog = { title, content, published };
+    expect(updatedBlog).toEqual({
+      title: "Greetings",
+      content: "Hhh".repeat(2001),
+      published: false,
+    });
+    expect(response.body.blog.editedOn).toBeDefined();
   });
 });

@@ -1,7 +1,7 @@
 import blogModel, { IBlog } from "@src/models/blog";
 import { Temporal } from "@js-temporal/polyfill";
 import { NextFunction, Request, Response } from "express";
-import { body, matchedData, param } from "express-validator";
+import { matchedData, param } from "express-validator";
 import jwt from "jsonwebtoken";
 import {
   handleUserLookUp,
@@ -20,33 +20,6 @@ import commentModel from "@src/models/comment";
 
 export const createBlog = [
   handleBearerToken,
-  body("title")
-    .trim()
-    .escape()
-    .notEmpty()
-    .withMessage("Title is required")
-    .isLength({
-      min: 2,
-      max: 60,
-    })
-    .withMessage("Title must be between 2 and 60 characters"),
-  body("content")
-    .trim()
-    .escape()
-    .notEmpty()
-    .withMessage("Content is required")
-    .isLength({
-      min: 2000,
-      max: 70000,
-    })
-    .withMessage("Content must be between 2000 and 70000 characters"),
-  body("published")
-    .trim()
-    .escape()
-    .notEmpty()
-    .withMessage("Published is required")
-    .isBoolean()
-    .withMessage("Published must be a boolean value"),
   param("userId").trim().escape().notEmpty().withMessage("User is required"),
   handleValidation,
   handleUserLookUp,
@@ -175,5 +148,43 @@ export const deleteBlog = [
       next(err);
     }
     next();
+  },
+];
+
+export const updateBlog = [
+  handleBearerToken,
+  param("userId").trim().escape().notEmpty(),
+  param("blogId").trim().escape().notEmpty(),
+  handleValidation,
+  handleUserLookUp,
+  doesTokenMatchUser,
+  handleBlogLookUp,
+  async function (req: Request, res: Response, next: NextFunction) {
+    try {
+      const { title, content, published } = matchedData(req) as {
+        title: string;
+        content: string;
+        published: boolean;
+      };
+      const blog = res.locals.blog as IBlog;
+      const editedOn = Temporal.Instant.from(
+        Temporal.Now.instant().toString(),
+      ).toString();
+
+      const updatedBlog = await blogModel.findByIdAndUpdate(
+        blog._id,
+        {
+          title,
+          content,
+          published,
+          editedOn,
+        },
+        { new: true },
+      );
+      res.status(200).json({ blog: updatedBlog });
+      next();
+    } catch (err) {
+      next(err);
+    }
   },
 ];
