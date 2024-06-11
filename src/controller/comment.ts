@@ -122,12 +122,16 @@ export const updateComment = [
     try {
       const comment = res.locals.comment as IComment;
       const { comment: newContent } = matchedData(req) as { comment: string };
+      const editedOn = Temporal.Instant.from(
+        Temporal.Now.instant().toString(),
+      ).toString();
       if (comment.content === newContent) res.status(304).end();
       else {
         const updatedComment = await commentModel.findByIdAndUpdate(
           comment._id,
           {
             content: newContent,
+            editedOn,
           },
           { new: true },
         );
