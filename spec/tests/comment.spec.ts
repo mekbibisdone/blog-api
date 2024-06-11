@@ -222,3 +222,77 @@ describe("Comment deletion", () => {
     expect(deletedComment).toBeNull();
   });
 });
+
+describe("Comment Update", () => {
+  const userData = {
+    fullname: "daniel",
+    email: "d@d.com",
+    password: "g6Ol0a55&4<r",
+  };
+
+  const comment = "ww";
+
+  const blog = {
+    title: "Greetings",
+    content: "H".repeat(2001),
+    published: true,
+  };
+
+  let userId: string;
+  let blogId: string;
+  let commentId: string;
+
+  let token: string;
+
+  const passwordHash = bcrypt.hashSync(userData.password, 10);
+
+  beforeEach(async () => {
+    const newUser = new userModel({
+      ...userData,
+      password: passwordHash,
+    });
+    const savedUser = await newUser.save();
+    userId = savedUser._id.toString();
+    token = jwt.sign(
+      { fullname: userData.fullname, email: userData.email, id: userId },
+      EnvVars.Jwt.Secret,
+    );
+
+    const savedBlogs = await saveBlogs([blog] as BlogBody[], savedUser);
+    blogId = savedBlogs[0]._id.toString();
+
+    const savedComment = await saveComment(blogId, userId, comment);
+    commentId = savedComment._id.toString();
+  }, 10000);
+
+  afterEach(async () => {
+    await userModel.deleteMany({});
+    await userModel.deleteMany({});
+  });
+
+  it("successfully updates if the token and the data is correct", async () => {
+    const newComment = "pow pow";
+    const response = await api
+      .put(
+        `/api/users/${userId}/blogs/${blogId}/comments/\
+    ${commentId}`,
+      )
+      .set({ authorization: `Bearer ${token}` })
+      .send({ comment: newComment });
+
+    expect(response.status).toBe(200);
+    expect(response.body.comment.content).toBe(newComment);
+  });
+
+  it("returns a 304 if the content hasn't changed", async () => {
+    const response = await api
+      .put(
+        `/api/users/${userId}/blogs/${blogId}/comments/\
+  ${commentId}`,
+      )
+      .set({ authorization: `Bearer ${token}` })
+      .send({ comment });
+
+    expect(response.status).toBe(304);
+  });
+});

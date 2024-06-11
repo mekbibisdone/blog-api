@@ -98,3 +98,45 @@ export const deleteComment = [
     }
   },
 ];
+
+export const updateComment = [
+  body("comment")
+    .trim()
+    .escape()
+    .notEmpty()
+    .withMessage("Comment is required")
+    .isLength({
+      min: 2,
+      max: 500,
+    }),
+  param("userId").trim().escape().notEmpty(),
+  param("blogId").trim().escape().notEmpty(),
+  param("commentId").trim().escape().notEmpty(),
+  handleBearerToken,
+  handleValidation,
+  handleUserLookUp,
+  handleBlogLookUp,
+  handleCommentLookUp,
+  doesTokenMatchCommentUser,
+  async function (req: Request, res: Response, next: NextFunction) {
+    try {
+      const comment = res.locals.comment as IComment;
+      const { comment: newContent } = matchedData(req) as { comment: string };
+      if (comment.content === newContent) res.status(304).end();
+      else {
+        const updatedComment = await commentModel.findByIdAndUpdate(
+          comment._id,
+          {
+            content: newContent,
+          },
+          { new: true },
+        );
+
+        res.status(200).json({ comment: updatedComment });
+      }
+    } catch (err) {
+      next(err);
+    }
+    next();
+  },
+];
