@@ -164,27 +164,41 @@ export const updateBlog = [
       const { title, content, published } = matchedData(req) as {
         title: string;
         content: string;
-        published: boolean;
+        published: string;
       };
+      const toBeChanged: Partial<{
+        title: string;
+        content: string;
+        published: boolean;
+      }> = { title, content, published: Boolean(published) };
       const blog = res.locals.blog as IBlog;
-      const editedOn = Temporal.Instant.from(
-        Temporal.Now.instant().toString(),
-      ).toString();
+      let keys = Object.keys(toBeChanged) as Array<keyof typeof toBeChanged>;
+      for (const key of keys) {
+        if (toBeChanged[key] === blog[key]) delete toBeChanged[key];
+      }
+      keys = Object.keys(toBeChanged) as Array<keyof typeof toBeChanged>;
+      if (!keys.length) {
+        res.status(304).end();
+      } else {
+        const editedOn = Temporal.Instant.from(
+          Temporal.Now.instant().toString(),
+        ).toString();
 
-      const updatedBlog = await blogModel.findByIdAndUpdate(
-        blog._id,
-        {
-          title,
-          content,
-          published,
-          editedOn,
-        },
-        { new: true },
-      );
-      res.status(200).json({ blog: updatedBlog });
-      next();
+        const updatedBlog = await blogModel.findByIdAndUpdate(
+          blog._id,
+          {
+            title,
+            content,
+            published,
+            editedOn,
+          },
+          { new: true },
+        );
+        res.status(200).json({ blog: updatedBlog });
+      }
     } catch (err) {
       next(err);
     }
+    next();
   },
 ];

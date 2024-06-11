@@ -482,4 +482,12 @@ describe("Blog update", () => {
     });
     expect(response.body.blog.editedOn).toBeDefined();
   });
+  it("returns a 304 if there is no change in the blog data", async () => {
+    const response = await api
+      .put(`/api/users/${userId}/blogs/${blogId}`)
+      .set({ authorization: `Bearer ${token}` })
+      .send({ ...blogs[0] });
+
+    expect(response.status).toBe(304);
+  });
 });
