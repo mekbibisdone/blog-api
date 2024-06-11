@@ -11,7 +11,7 @@ import logger from "jet-logger";
 
 import "express-async-errors";
 import Paths from "./constants/Paths";
-import BaseRouter from "@src/routes/api";
+import apiRouter from "@src/routes/api";
 
 import EnvVars from "@src/constants/EnvVars";
 import HttpStatusCodes from "@src/constants/HttpStatusCodes";
@@ -21,7 +21,6 @@ import { RouteError } from "@src/other/classes";
 
 import { initializeMongoServer } from "./util/mongoDev";
 import { connectToProdDatabase } from "./util/mongoProd";
-import apiRouter from "@src/routes/api";
 // **** Variables **** //
 
 const app = express();
@@ -51,7 +50,7 @@ if (EnvVars.NodeEnv === NodeEnvs.Production.valueOf()) {
 }
 
 // Add APIs, must be after middleware
-app.use(Paths.Base, BaseRouter);
+app.use(Paths.Base, apiRouter);
 
 // Add error handler
 app.use(
@@ -82,13 +81,6 @@ app.set("views", viewsDir);
 // Set static directory (js and css).
 const staticDir = path.join(__dirname, "public");
 app.use(express.static(staticDir));
-
-
-app.get("/", (_: Request, res: Response) => {
-  return res.json("hello world");
-});
-
-app.use("/api", apiRouter);
 // **** Export default **** //
 
 export default app;
