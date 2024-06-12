@@ -25,7 +25,7 @@ describe("Login", () => {
   it("returns the user's info and a token if credentials are correct", async () => {
     const response = await api.post("/api/login").send({ ...data });
     expect(response.headers["content-type"]).toMatch(/json/);
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     expect(response.body.token).toBeDefined();
     expect(response.body.fullname).toBe(data.fullname);
     expect(response.body.email).toBe(data.email);

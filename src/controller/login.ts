@@ -33,7 +33,7 @@ export const login = [
           const exp = Number(EnvVars.Jwt.Exp);
           const secret = EnvVars.Jwt.Secret;
           const token = jwt.sign({ data: { ...userInDb }, exp }, secret);
-          res.status(201).json({
+          res.status(200).json({
             fullname: userInDb.fullname,
             email: userInDb.email,
             blogs: userInDb.blogs,
