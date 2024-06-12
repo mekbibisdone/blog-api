@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 import { body, validationResult } from "express-validator";
 import { matchedData } from "express-validator";
 import userModel, { IUser } from "@src/models/user";
-import { BlogBody, UserBody } from "./types";
+import { BlogBody, LoginBody, UserBody } from "./types";
 import blogModel, { IBlog } from "@src/models/blog";
 import commentModel, { IComment } from "@src/models/comment";
 
@@ -86,7 +86,7 @@ export function handleValidation(
   if (!result.isEmpty()) {
     res.status(400).json({
       errors: result.array(),
-      data: req.body as UserBody | BlogBody,
+      data: req.body as UserBody | BlogBody | LoginBody | { comment: string },
     });
   } else next();
 }

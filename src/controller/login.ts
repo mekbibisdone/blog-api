@@ -3,8 +3,9 @@ import userModel from "@src/models/user";
 import { LoginBody } from "@src/controller/types";
 import bcrypt from "bcrypt";
 import { NextFunction, Request, Response } from "express";
-import { body, matchedData, validationResult } from "express-validator";
+import { body, matchedData } from "express-validator";
 import jwt from "jsonwebtoken";
+import { handleValidation } from "./utils";
 
 export const login = [
   body("email")
@@ -16,21 +17,8 @@ export const login = [
     .withMessage(
       "Email is not is not in the correct form. example: dan@gmail.com",
     ),
-  body("password")
-    .trim()
-    .notEmpty()
-    .withMessage("Password is required"),
-  function (req: Request, res: Response, next: NextFunction) {
-    const result = validationResult(req);
-    if (!result.isEmpty()) {
-      res.status(400).json({
-        errors: result.array(),
-        data: req.body as LoginBody,
-      });
-    } else {
-      next();
-    }
-  },
+  body("password").trim().notEmpty().withMessage("Password is required"),
+  handleValidation,
   async function (req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password } = matchedData(req) as LoginBody;
